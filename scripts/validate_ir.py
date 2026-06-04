@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 REQUIRED_TOP_LEVEL = ["decision", "options", "variables"]
+ALLOWED_VARIABLE_STATUS = {"known", "unknown", "assumption"}
 
 
 def load_json(path: Path) -> dict:
@@ -58,8 +59,13 @@ def validate(ir: dict) -> list[str]:
                 continue
             if "value" not in variable:
                 errors.append(f"variables.{name}.value is required")
+            elif variable.get("value") is None and variable.get("status") != "unknown":
+                errors.append(f"variables.{name}.status must be 'unknown' when value is null")
             if "unit" not in variable:
                 errors.append(f"variables.{name}.unit is required, use null if dimensionless")
+            status = variable.get("status")
+            if status is not None and status not in ALLOWED_VARIABLE_STATUS:
+                errors.append(f"variables.{name}.status must be one of {sorted(ALLOWED_VARIABLE_STATUS)}")
             confidence = variable.get("confidence")
             if confidence is None:
                 errors.append(f"variables.{name}.confidence is required")

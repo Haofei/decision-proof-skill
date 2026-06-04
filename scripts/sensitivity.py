@@ -15,10 +15,15 @@ def load_json(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
-def var(ir: dict[str, Any], name: str, default: float = 0.0) -> float:
-    item = ir.get("variables", {}).get(name, {})
+def var(ir: dict[str, Any], name: str, default: float = 0.0) -> float | None:
+    variables = ir.get("variables", {})
+    if name not in variables:
+        return default
+    item = variables.get(name, {})
     if isinstance(item, dict) and item.get("value") is not None:
         return float(item["value"])
+    if isinstance(item, dict) and item.get("value") is None:
+        return None
     return default
 
 
@@ -35,37 +40,67 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
     optionality_value = var(ir, "optionality_value_monthly")
     margin = var(ir, "decision_margin")
 
-    time_saved = max(0.0, commute_days * 2 * (current_minutes - car_minutes) / 60)
-    time_saved += max(0.0, non_commute_trips * non_commute_minutes_saved / 60)
+    unknowns = []
+    commute_inputs = {
+        "commute_days_per_month": commute_days,
+        "current_minutes_each_way": current_minutes,
+        "car_minutes_each_way": car_minutes,
+    }
+    for name, item in commute_inputs.items():
+        if item is None:
+            unknowns.append(name)
+    if unknowns:
+        commute_time_saved = None
+    else:
+        commute_time_saved = max(0.0, commute_days * 2 * (current_minutes - car_minutes) / 60)
+
+    non_commute_time_saved = 0.0
+    if non_commute_trips is None:
+        unknowns.append("non_commute_trips_per_month")
+        non_commute_time_saved = None
+    elif non_commute_minutes_saved is None:
+        unknowns.append("average_non_commute_minutes_saved")
+        non_commute_time_saved = None
+    else:
+        non_commute_time_saved = max(0.0, non_commute_trips * non_commute_minutes_saved / 60)
+
+    known_time_saved = (commute_time_saved or 0.0) + (non_commute_time_saved or 0.0)
 
     non_time_value = comfort_value + optionality_value
     incremental_cost = monthly_car_cost - current_transport_cost
 
-    break_even_incremental_cost = time_saved * value_of_time + non_time_value - margin
-    break_even_monthly_car_cost = current_transport_cost + break_even_incremental_cost
+    break_even_monthly_car_cost = None
+    if value_of_time is not None:
+        break_even_incremental_cost = known_time_saved * value_of_time + non_time_value - margin
+        break_even_monthly_car_cost = current_transport_cost + break_even_incremental_cost
     break_even_value_of_time = None
-    if time_saved > 0:
-        break_even_value_of_time = (incremental_cost - non_time_value + margin) / time_saved
+    if known_time_saved > 0:
+        break_even_value_of_time = (incremental_cost - non_time_value + margin) / known_time_saved
 
     break_even_time_saved_hours = None
-    if value_of_time > 0:
+    if value_of_time and value_of_time > 0:
         break_even_time_saved_hours = (incremental_cost - non_time_value + margin) / value_of_time
 
-    required_lifestyle_premium = max(0.0, incremental_cost - (time_saved * value_of_time) + margin)
+    required_lifestyle_premium = None
+    if value_of_time is not None:
+        required_lifestyle_premium = max(0.0, incremental_cost - (known_time_saved * value_of_time) + margin)
 
     return {
         "current": {
-            "monthly_time_saved_hours": round(time_saved, 2),
+            "known_monthly_time_saved_hours": round(known_time_saved, 2),
+            "monthly_commute_time_saved_hours": round(commute_time_saved, 2) if commute_time_saved is not None else None,
+            "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2) if non_commute_time_saved is not None else None,
             "monthly_car_cost": round(monthly_car_cost, 2),
             "incremental_cost": round(incremental_cost, 2),
-            "value_of_time": round(value_of_time, 2),
+            "value_of_time": round(value_of_time, 2) if value_of_time is not None else None,
             "comfort_plus_optionality": round(non_time_value, 2),
+            "unknown_variables": sorted(set(unknowns)),
         },
         "flip_conditions": {
-            "break_even_monthly_car_cost": round(break_even_monthly_car_cost, 2),
+            "break_even_monthly_car_cost": round(break_even_monthly_car_cost, 2) if break_even_monthly_car_cost is not None else None,
             "break_even_value_of_time": round(break_even_value_of_time, 2) if break_even_value_of_time is not None else None,
             "break_even_time_saved_hours": round(break_even_time_saved_hours, 2) if break_even_time_saved_hours is not None else None,
-            "required_lifestyle_premium": round(required_lifestyle_premium, 2),
+            "required_lifestyle_premium": round(required_lifestyle_premium, 2) if required_lifestyle_premium is not None else None,
         },
     }
 

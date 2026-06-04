@@ -29,15 +29,14 @@ What would have to change for the conclusion to flip?
 
 ## Current MVP
 
-The first implemented domain is personal car decisions:
+The first implemented domain is personal car decisions. The current evaluator supports the narrow MVP:
 
 ```text
 Should I buy a car?
-Should I buy new or used?
-Should I buy a car or keep using rideshare?
-Should I buy an EV or gas car?
-Should I buy now or wait?
+buy_car vs no_car
 ```
+
+Other car decisions such as new-vs-used, EV-vs-gas, rideshare-vs-buy, and buy-now-vs-wait are design targets, but they need the next option-based evaluator rather than the current buy/no-buy engine.
 
 The same pattern has also been tested manually on a graduate-school decision:
 
@@ -97,10 +96,16 @@ python3 scripts/sensitivity.py examples/car-decision.json
 Generate and check a Lean proof:
 
 ```bash
-python3 scripts/generate_lean_car_proof.py examples/car-decision.json --out /tmp/CarDecisionProof.lean
+python3 scripts/generate_lean_car_proof.py examples/car-decision-lean-yes.json --out /tmp/CarDecisionProof.lean
 ```
 
 The Lean backend checks that the recommendation predicate follows from the concrete numbers and rules. It does not prove the real-world estimates are true.
+
+Run tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
 
 ## Design Boundary
 

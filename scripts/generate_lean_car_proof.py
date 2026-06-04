@@ -23,7 +23,6 @@ DEFAULTS = {
     "min_emergency_fund_months": 6.0,
     "max_car_cost_income_ratio": 0.15,
     "hard_max_car_cost_income_ratio": 0.20,
-    "value_of_time": 0.0,
     "comfort_value_monthly": 0.0,
     "optionality_value_monthly": 0.0,
     "decision_margin": 0.0,
@@ -36,14 +35,19 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def var(ir: dict[str, Any], name: str, default: float | None = None) -> float | None:
-    item = ir.get("variables", {}).get(name, {})
+    variables = ir.get("variables", {})
+    if name not in variables:
+        if default is not None:
+            return float(default)
+        if name in DEFAULTS:
+            return float(DEFAULTS[name])
+        return None
+    item = variables.get(name, {})
     if isinstance(item, dict) and item.get("value") is not None:
         return float(item["value"])
-    if default is not None:
-        return float(default)
-    if name in DEFAULTS:
-        return float(DEFAULTS[name])
-    return None
+    if isinstance(item, dict) and item.get("value") is None:
+        return None
+    return default
 
 
 def emergency_months(ir: dict[str, Any]) -> float | None:
@@ -66,7 +70,14 @@ def nat_floor(value: float) -> int:
 
 
 def derive(ir: dict[str, Any]) -> dict[str, Any]:
-    required = ["monthly_car_cost", "monthly_after_tax_income"]
+    required = [
+        "monthly_car_cost",
+        "monthly_after_tax_income",
+        "commute_days_per_month",
+        "current_minutes_each_way",
+        "car_minutes_each_way",
+        "value_of_time",
+    ]
     missing = [name for name in required if var(ir, name, None) is None]
     if emergency_months(ir) is None:
         missing.append("emergency_fund_months_after or emergency_fund_balance/monthly_required_expenses")
@@ -189,16 +200,16 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="Path for generated .lean file")
     args = parser.parse_args()
 
-    lean = shutil.which("lean")
-    if not lean:
-        print(json.dumps({"ok": False, "error": "lean executable not found"}, indent=2))
-        return 1
-
     try:
         data = derive(load_json(args.ir_json))
         lean_source = render_lean(data)
     except Exception as exc:  # noqa: BLE001
         print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+        return 1
+
+    lean = shutil.which("lean")
+    if not lean:
+        print(json.dumps({"ok": False, "error": "lean executable not found"}, indent=2))
         return 1
 
     if args.out:

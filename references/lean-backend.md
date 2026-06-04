@@ -37,3 +37,13 @@ The first Lean slice proves one of these:
 - `DoNotRecommend d`: cash safety fails or affordability hard ceiling fails.
 
 This is intentionally narrow. It proves rule closure, not real-world truth.
+
+## Near-Term Invariants
+
+Prefer proving these invariants before adding more domain formulas:
+
+- hard constraint failed implies `do_not_recommend`
+- missing required variable implies `insufficient_evidence`
+- unknown variables cannot be used as numeric zero unless explicitly defaulted
+- recommendation status must match proof goals
+- every derived value must cite dependencies

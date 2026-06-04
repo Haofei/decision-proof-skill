@@ -27,6 +27,7 @@ Use Decision IR to persist the user's decision model outside the chat transcript
   "variables": {
     "monthly_car_cost": {
       "value": 850,
+      "status": "known",
       "unit": "USD/month",
       "confidence": 0.6,
       "source": "user_estimate"
@@ -35,9 +36,15 @@ Use Decision IR to persist the user's decision model outside the chat transcript
   "rules": [],
   "proof_state": {
     "target_claim": "buy_car_better_than_no_car",
-    "closed_goals": [],
-    "open_goals": [],
-    "failed_goals": []
+    "goals": [
+      {
+        "id": "G1",
+        "claim": "cash_safety",
+        "status": "open",
+        "reason": "emergency fund months are unknown",
+        "dependencies": ["emergency_fund_months_after"]
+      }
+    ]
   },
   "recommendation": {
     "status": "insufficient_evidence",
@@ -53,6 +60,8 @@ Use Decision IR to persist the user's decision model outside the chat transcript
 - `options`: Include all real alternatives, not only the option the user is tempted by.
 - `hard_constraints`: Rules that must pass before recommendation. Do not trade them away as soft utility.
 - `variables`: Store values with `unit`, `confidence`, and `source`.
+- `variables.*.value`: Use `null` for unknown values. Do not encode unknown as `0`.
+- `variables.*.status`: Use `known`, `unknown`, or `assumption`. If `value` is `null`, `status` must be `unknown`.
 - `rules`: Store deterministic formulas and dependencies.
 - `derived_values`: Store computed outputs and their source dependencies.
 - `proof_state`: Store target claim and goal statuses.
@@ -76,3 +85,21 @@ Prefer split confidence dimensions in the final explanation:
 - stability confidence
 
 Do not collapse these into a fake precise percentage unless the user asks for a scoring model.
+
+## Unknown Values
+
+Represent unknown values explicitly:
+
+```json
+{
+  "value_of_time": {
+    "value": null,
+    "status": "unknown",
+    "unit": "USD/hour",
+    "confidence": 0.3,
+    "source": "unknown"
+  }
+}
+```
+
+Evaluators must not treat this as zero. Any derived value that depends on an unknown should become `null`, and the related proof goal should be `open`.

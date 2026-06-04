@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
+
+
+evaluate_mod = load_module("evaluate_car_decision", ROOT / "scripts" / "evaluate_car_decision.py")
+validate_mod = load_module("validate_ir", ROOT / "scripts" / "validate_ir.py")
+
+
+def base_ir() -> dict:
+    return {
+        "decision": {
+            "id": "test_car",
+            "question": "Should I buy a car?",
+            "type": "personal_finance_mobility",
+        },
+        "options": [
+            {"id": "buy_car", "label": "Buy a car"},
+            {"id": "no_car", "label": "Do not buy a car"},
+        ],
+        "variables": {
+            "commute_days_per_month": {"value": 20, "unit": "days/month", "confidence": 0.8, "source": "measured"},
+            "current_minutes_each_way": {"value": 60, "unit": "minutes", "confidence": 0.8, "source": "measured"},
+            "car_minutes_each_way": {"value": 30, "unit": "minutes", "confidence": 0.8, "source": "measured"},
+            "monthly_car_cost": {"value": 500, "unit": "USD/month", "confidence": 0.8, "source": "quoted"},
+            "current_transport_monthly_cost": {"value": 100, "unit": "USD/month", "confidence": 0.8, "source": "measured"},
+            "monthly_after_tax_income": {"value": 5000, "unit": "USD/month", "confidence": 0.8, "source": "measured"},
+            "emergency_fund_months_after": {"value": 8, "unit": "months", "confidence": 0.8, "source": "measured"},
+            "value_of_time": {"value": 50, "unit": "USD/hour", "confidence": 0.8, "source": "estimated"},
+            "expected_need_stability_months": {"value": 24, "unit": "months", "confidence": 0.8, "source": "estimated"},
+        },
+    }
+
+
+class CarDecisionTests(unittest.TestCase):
+    def test_hard_constraint_fail_is_do_not_recommend(self):
+        ir = base_ir()
+        ir["variables"]["emergency_fund_months_after"]["value"] = 2
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertEqual(result["recommendation"]["status"], "do_not_recommend")
+        self.assertEqual(result["proof_state"]["goals"][0]["status"], "failed")
+
+    def test_missing_income_is_insufficient_evidence(self):
+        ir = base_ir()
+        del ir["variables"]["monthly_after_tax_income"]
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertEqual(result["recommendation"]["status"], "insufficient_evidence")
+        income_goal = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "income_affordability")
+        self.assertEqual(income_goal["status"], "open")
+
+    def test_net_positive_strong_evidence_is_recommend(self):
+        ir = base_ir()
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertEqual(result["recommendation"]["status"], "recommend")
+
+    def test_net_positive_weak_evidence_is_lean_yes(self):
+        ir = base_ir()
+        ir["variables"]["value_of_time"]["confidence"] = 0.4
+        ir["variables"]["value_of_time"]["source"] = "guessed"
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertEqual(result["recommendation"]["status"], "lean_yes")
+
+    def test_unknown_value_of_time_opens_goal_instead_of_zeroing(self):
+        ir = base_ir()
+        ir["variables"]["value_of_time"]["value"] = None
+        ir["variables"]["value_of_time"]["status"] = "unknown"
+        ir["variables"]["value_of_time"]["source"] = "unknown"
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertEqual(result["recommendation"]["status"], "insufficient_evidence")
+        self.assertIsNone(result["derived_values"]["monthly_time_value"])
+        benefit_goal = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "benefit_exceeds_incremental_cost")
+        self.assertEqual(benefit_goal["status"], "open")
+        self.assertIn("value_of_time", benefit_goal["dependencies"])
+
+    def test_hard_threshold_rounding(self):
+        ir = base_ir()
+        ir["variables"]["monthly_car_cost"]["value"] = 1000
+        ir["variables"]["monthly_after_tax_income"]["value"] = 5000
+        ir["variables"]["value_of_time"]["value"] = 100
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertNotEqual(result["recommendation"]["status"], "do_not_recommend")
+        affordability = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "income_affordability")
+        self.assertEqual(affordability["status"], "failed")
+        self.assertIn("20.0%", affordability["reason"])
+
+    def test_validator_accepts_unknown_null_with_status(self):
+        ir = base_ir()
+        ir["variables"]["value_of_time"]["value"] = None
+        ir["variables"]["value_of_time"]["status"] = "unknown"
+        ir["variables"]["value_of_time"]["source"] = "unknown"
+
+        self.assertEqual(validate_mod.validate(ir), [])
+
+    def test_validator_rejects_null_without_unknown_status(self):
+        ir = base_ir()
+        ir["variables"]["value_of_time"]["value"] = None
+
+        errors = validate_mod.validate(ir)
+
+        self.assertTrue(any("status must be 'unknown'" in error for error in errors))
+
+    def test_lean_generator_refuses_unknown_numeric_inputs(self):
+        ir = base_ir()
+        ir["variables"]["value_of_time"]["value"] = None
+        ir["variables"]["value_of_time"]["status"] = "unknown"
+        ir["variables"]["value_of_time"]["source"] = "unknown"
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(ir, handle)
+            path = handle.name
+
+        proc = subprocess.run(
+            ["python3", str(ROOT / "scripts" / "generate_lean_car_proof.py"), path],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("value_of_time", proc.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

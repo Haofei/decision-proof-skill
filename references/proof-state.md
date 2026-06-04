@@ -13,12 +13,13 @@ Proof state makes a messy decision feel like a Lean goal list. It does not prove
 
 ```yaml
 proof_state:
-  target: "buy_car_better_than_no_car"
+  target_claim: "buy_car_better_than_no_car"
   goals:
     - id: "G1"
       claim: "financially_affordable"
       status: "closed"
       reason: "monthly_car_cost / monthly_after_tax_income is below threshold"
+      dependencies: ["monthly_car_cost", "monthly_after_tax_income"]
     - id: "G2"
       claim: "benefit_exceeds_incremental_cost"
       status: "failed"
@@ -35,6 +36,7 @@ proof_state:
 - If hard constraints pass but a main economic or utility goal fails, prefer `lean_no` unless the user explicitly values non-monetary utility enough to cover the gap.
 - If hard constraints pass and main goals are closed but key evidence is estimated or guessed, prefer `lean_yes`.
 - If key variables are missing, use `insufficient_evidence`.
+- If a variable is `value: null` with `status: unknown`, keep dependent goals `open`; never silently substitute zero.
 - If all major goals are closed with decent evidence and sensitivity is robust, use `recommend`.
 
 ## Open Goals

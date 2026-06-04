@@ -20,7 +20,6 @@ DEFAULTS = {
     "min_emergency_fund_months": 6,
     "max_car_cost_income_ratio": 0.15,
     "hard_max_car_cost_income_ratio": 0.20,
-    "value_of_time": 0,
     "comfort_value_monthly": 0,
     "optionality_value_monthly": 0,
     "decision_margin": 0,
@@ -37,7 +36,7 @@ def value(ir: dict[str, Any], name: str, default: float | None = None) -> float 
     if name in variables and isinstance(variables[name], dict):
         raw = variables[name].get("value")
         if raw is None:
-            return default
+            return None
         return float(raw)
     if default is not None:
         return float(default)
@@ -76,16 +75,17 @@ def evidence_quality(ir: dict[str, Any], names: list[str]) -> str:
     return "medium"
 
 
-def goal(goal_id: str, claim: str, status: str, reason: str) -> dict[str, str]:
-    return {"id": goal_id, "claim": claim, "status": status, "reason": reason}
+def goal(goal_id: str, claim: str, status: str, reason: str, dependencies: list[str]) -> dict[str, Any]:
+    return {"id": goal_id, "claim": claim, "status": status, "reason": reason, "dependencies": dependencies}
+
+
+def missing_for(ir: dict[str, Any], names: list[str]) -> list[str]:
+    return [name for name in names if value(ir, name, None) is None]
 
 
 def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
-    required = [
-        "monthly_car_cost",
-        "monthly_after_tax_income",
-    ]
-    missing = [name for name in required if value(ir, name, None) is None]
+    required = ["monthly_car_cost", "monthly_after_tax_income"]
+    missing = missing_for(ir, required)
     if emergency_fund_months(ir) is None:
         missing.append("emergency_fund_months_after or emergency_fund_balance/monthly_required_expenses")
 
@@ -101,60 +101,75 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
     min_emergency = value(ir, "min_emergency_fund_months")
     max_ratio = value(ir, "max_car_cost_income_ratio")
     hard_max_ratio = value(ir, "hard_max_car_cost_income_ratio")
-    value_of_time = value(ir, "value_of_time")
+    value_of_time = value(ir, "value_of_time", None)
     comfort_value = value(ir, "comfort_value_monthly")
     optionality_value = value(ir, "optionality_value_monthly")
     margin = value(ir, "decision_margin")
 
-    commute_time_saved = max(0.0, commute_days * 2 * (current_minutes - car_minutes) / 60)
-    non_commute_time_saved = max(0.0, non_commute_trips * non_commute_minutes_saved / 60)
-    total_time_saved = commute_time_saved + non_commute_time_saved
-    monthly_time_value = total_time_saved * value_of_time
-    incremental_car_cost = monthly_car_cost - current_transport_cost
-    net_monthly_value = monthly_time_value + comfort_value + optionality_value - incremental_car_cost
+    time_inputs_missing = missing_for(ir, ["commute_days_per_month", "current_minutes_each_way", "car_minutes_each_way"])
+    commute_time_saved = None if time_inputs_missing else max(0.0, commute_days * 2 * (current_minutes - car_minutes) / 60)
+    non_commute_missing = missing_for(ir, ["non_commute_trips_per_month", "average_non_commute_minutes_saved"])
+    non_commute_time_saved = None if non_commute_missing else max(0.0, non_commute_trips * non_commute_minutes_saved / 60)
+    total_time_saved = None if commute_time_saved is None or non_commute_time_saved is None else commute_time_saved + non_commute_time_saved
+    monthly_time_value = None if total_time_saved is None or value_of_time is None else total_time_saved * value_of_time
+    incremental_car_cost = None if monthly_car_cost is None or current_transport_cost is None else monthly_car_cost - current_transport_cost
+    net_monthly_value = (
+        None
+        if monthly_time_value is None or incremental_car_cost is None
+        else monthly_time_value + comfort_value + optionality_value - incremental_car_cost
+    )
     car_cost_income_ratio = (monthly_car_cost / income) if income else None
 
     goals = []
     if emergency_fund is None:
-        goals.append(goal("G1", "cash_safety", "open", "emergency_fund_months_after is missing"))
+        goals.append(goal("G1", "cash_safety", "open", "emergency fund months cannot be derived", ["emergency_fund_months_after", "emergency_fund_balance", "monthly_required_expenses"]))
     elif emergency_fund >= min_emergency:
-        goals.append(goal("G1", "cash_safety", "closed", f"{emergency_fund:g} months >= {min_emergency:g} months"))
+        goals.append(goal("G1", "cash_safety", "closed", f"{emergency_fund:g} months >= {min_emergency:g} months", ["emergency_fund_months_after", "min_emergency_fund_months"]))
     else:
-        goals.append(goal("G1", "cash_safety", "failed", f"{emergency_fund:g} months < {min_emergency:g} months"))
+        goals.append(goal("G1", "cash_safety", "failed", f"{emergency_fund:g} months < {min_emergency:g} months", ["emergency_fund_months_after", "min_emergency_fund_months"]))
 
     if car_cost_income_ratio is None:
-        goals.append(goal("G2", "income_affordability", "open", "monthly_after_tax_income is missing"))
+        goals.append(goal("G2", "income_affordability", "open", "monthly_after_tax_income is missing", ["monthly_car_cost", "monthly_after_tax_income"]))
     elif car_cost_income_ratio <= max_ratio:
-        goals.append(goal("G2", "income_affordability", "closed", f"car cost is {car_cost_income_ratio:.1%} of after-tax income"))
+        goals.append(goal("G2", "income_affordability", "closed", f"car cost is {car_cost_income_ratio:.1%} of after-tax income", ["monthly_car_cost", "monthly_after_tax_income", "max_car_cost_income_ratio"]))
     elif car_cost_income_ratio <= hard_max_ratio:
-        goals.append(goal("G2", "income_affordability", "failed", f"car cost is {car_cost_income_ratio:.1%}, above {max_ratio:.0%} pressure threshold"))
+        goals.append(goal("G2", "income_affordability", "failed", f"car cost is {car_cost_income_ratio:.1%}, above {max_ratio:.0%} pressure threshold", ["monthly_car_cost", "monthly_after_tax_income", "max_car_cost_income_ratio"]))
     else:
-        goals.append(goal("G2", "income_affordability", "failed", f"car cost is {car_cost_income_ratio:.1%}, above {hard_max_ratio:.0%} hard ceiling"))
+        goals.append(goal("G2", "income_affordability", "failed", f"car cost is {car_cost_income_ratio:.1%}, above {hard_max_ratio:.0%} hard ceiling", ["monthly_car_cost", "monthly_after_tax_income", "hard_max_car_cost_income_ratio"]))
 
-    if net_monthly_value > margin:
-        goals.append(goal("G3", "benefit_exceeds_incremental_cost", "closed", f"net monthly value is ${net_monthly_value:.0f}"))
+    if net_monthly_value is None:
+        open_deps = []
+        if value_of_time is None:
+            open_deps.append("value_of_time")
+        open_deps.extend(time_inputs_missing)
+        open_deps.extend(non_commute_missing)
+        goals.append(goal("G3", "benefit_exceeds_incremental_cost", "open", "net monthly value cannot be computed without unknown variables", sorted(set(open_deps))))
+    elif net_monthly_value > margin:
+        goals.append(goal("G3", "benefit_exceeds_incremental_cost", "closed", f"net monthly value is ${net_monthly_value:.0f}", ["monthly_time_value", "incremental_car_cost", "comfort_value_monthly", "optionality_value_monthly"]))
     else:
         premium = abs(net_monthly_value - margin)
-        goals.append(goal("G3", "benefit_exceeds_incremental_cost", "failed", f"needs about ${premium:.0f}/month more comfort, optionality, or time value"))
+        goals.append(goal("G3", "benefit_exceeds_incremental_cost", "failed", f"needs about ${premium:.0f}/month more comfort, optionality, or time value", ["monthly_time_value", "incremental_car_cost", "comfort_value_monthly", "optionality_value_monthly"]))
 
     if value(ir, "expected_need_stability_months", None) is None:
-        goals.append(goal("G4", "future_need_stability", "open", "future work/location/commute stability is unknown"))
+        goals.append(goal("G4", "future_need_stability", "open", "future work/location/commute stability is unknown", ["expected_need_stability_months"]))
     elif value(ir, "expected_need_stability_months", 0) >= 12:
-        goals.append(goal("G4", "future_need_stability", "closed", "need appears stable for at least 12 months"))
+        goals.append(goal("G4", "future_need_stability", "closed", "need appears stable for at least 12 months", ["expected_need_stability_months"]))
     else:
-        goals.append(goal("G4", "future_need_stability", "assumption", "need stability is short or uncertain"))
+        goals.append(goal("G4", "future_need_stability", "assumption", "need stability is short or uncertain", ["expected_need_stability_months"]))
 
-    failed_hard = any(g["id"] in {"G1", "G2"} and g["status"] == "failed" for g in goals)
-    open_required = bool(missing)
+    failed_hard = (emergency_fund is not None and emergency_fund < min_emergency) or (
+        car_cost_income_ratio is not None and car_cost_income_ratio > hard_max_ratio
+    )
+    open_required = bool(missing) or any(g["id"] == "G3" and g["status"] == "open" for g in goals)
     evidence = evidence_quality(ir, ["monthly_car_cost", "current_minutes_each_way", "car_minutes_each_way", "value_of_time"])
 
     if open_required:
         status = "insufficient_evidence"
     elif failed_hard:
         status = "do_not_recommend"
-    elif net_monthly_value > margin and evidence == "strong":
+    elif net_monthly_value is not None and net_monthly_value > margin and evidence == "strong":
         status = "recommend"
-    elif net_monthly_value > margin:
+    elif net_monthly_value is not None and net_monthly_value > margin:
         status = "lean_yes"
     else:
         status = "lean_no"
@@ -162,15 +177,15 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
     return {
         "derived_values": {
             "monthly_commute_time_saved_hours": round(commute_time_saved, 2),
-            "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2),
-            "monthly_time_saved_hours": round(total_time_saved, 2),
-            "monthly_time_value": round(monthly_time_value, 2),
-            "incremental_car_cost": round(incremental_car_cost, 2),
-            "net_monthly_value": round(net_monthly_value, 2),
+            "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2) if non_commute_time_saved is not None else None,
+            "monthly_time_saved_hours": round(total_time_saved, 2) if total_time_saved is not None else None,
+            "monthly_time_value": round(monthly_time_value, 2) if monthly_time_value is not None else None,
+            "incremental_car_cost": round(incremental_car_cost, 2) if incremental_car_cost is not None else None,
+            "net_monthly_value": round(net_monthly_value, 2) if net_monthly_value is not None else None,
             "car_cost_income_ratio": round(car_cost_income_ratio, 4) if car_cost_income_ratio is not None else None,
         },
         "proof_state": {
-            "target": "buy_car_better_than_no_car",
+            "target_claim": "buy_car_better_than_no_car",
             "goals": goals,
         },
         "recommendation": {

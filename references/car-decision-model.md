@@ -3,6 +3,15 @@
 Use this reference for MVP questions such as:
 
 - Should I buy a car?
+
+The current evaluator supports only the narrow MVP:
+
+```text
+buy_car vs no_car
+```
+
+These are roadmap domains that require an option-based evaluator:
+
 - Should I buy new or used?
 - Should I buy a car or keep using rideshare?
 - Should I buy an EV or gas car?
