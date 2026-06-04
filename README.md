@@ -40,14 +40,17 @@ The product direction is a Decision Workspace rather than a plain chat surface:
 
 ## Current MVP
 
-The first implemented domain is personal car decisions. The current evaluator supports the narrow MVP:
+The first implemented domain is personal car decisions. It now has two evaluator levels:
 
 ```text
-Should I buy a car?
-buy_car vs no_car
+evaluate_car_decision.py:
+  buy_car vs no_car
+
+evaluate_car_options.py:
+  no_car / used_gas_car / used_ev / new_car / wait_6_months style comparison
 ```
 
-Other car decisions such as new-vs-used, EV-vs-gas, rideshare-vs-buy, and buy-now-vs-wait are design targets, but they need the next option-based evaluator rather than the current buy/no-buy engine.
+The option-based evaluator is still intentionally small, but it supports the Scenario Comparison shape: each option has its own cost, time, risk, evidence quality, proof goals, status, main risk, and ranking.
 
 The same pattern has also been tested manually on a graduate-school decision:
 
@@ -96,6 +99,12 @@ Evaluate a car decision:
 
 ```bash
 python3 scripts/evaluate_car_decision.py examples/car-decision.json
+```
+
+Compare multiple car options:
+
+```bash
+python3 scripts/evaluate_car_options.py examples/car-options-comparison.json
 ```
 
 Compute sensitivity thresholds:

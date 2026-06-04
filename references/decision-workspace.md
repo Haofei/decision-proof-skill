@@ -42,9 +42,9 @@ It does not mean:
 The real-world estimates are guaranteed true.
 ```
 
-## Next Product Step
+## Option-Based Comparison
 
-The current car evaluator is buy/no-buy. The next major engine change is option-based evaluation:
+The repo includes an initial option-based car evaluator for:
 
 ```text
 no_car
@@ -55,3 +55,5 @@ wait_6_months
 ```
 
 Each option should carry its own cost, time, risk, constraints, utility, evidence quality, and proof goals.
+
+The next major engine step is to connect option comparison to report generation, decision diffs, and Lean/verifier invariants.

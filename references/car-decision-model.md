@@ -4,13 +4,17 @@ Use this reference for MVP questions such as:
 
 - Should I buy a car?
 
-The current evaluator supports only the narrow MVP:
+There are now two evaluator levels:
 
 ```text
-buy_car vs no_car
+evaluate_car_decision.py:
+  narrow buy_car vs no_car MVP
+
+evaluate_car_options.py:
+  option-based comparison for no_car / used_gas_car / used_ev / new_car / wait_6_months style scenarios
 ```
 
-These are roadmap domains that require an option-based evaluator:
+Option-based comparison supports these design targets:
 
 - Should I buy new or used?
 - Should I buy a car or keep using rideshare?
@@ -60,6 +64,46 @@ preference:
 
 uncertainty:
   expected_need_stability_months
+```
+
+## Option-Based Shape
+
+For multi-option comparison, put option-specific values under each option's `model`:
+
+```json
+{
+  "options": [
+    {
+      "id": "used_gas_car",
+      "label": "Used gas car",
+      "model": {
+        "monthly_cost": 300,
+        "baseline_monthly_cost": 50,
+        "monthly_time_saved_hours": 6,
+        "comfort_value_monthly": 40,
+        "optionality_value_monthly": 60,
+        "emergency_fund_months_after": 18,
+        "expected_need_stability_months": 24
+      },
+      "evidence": {
+        "monthly_cost": {"source": "quoted", "confidence": 0.75}
+      }
+    }
+  ]
+}
+```
+
+The option evaluator emits:
+
+```text
+option id
+status
+evidence quality
+main risk
+derived values
+proof goals
+ranking
+best actionable option
 ```
 
 ## Defaults

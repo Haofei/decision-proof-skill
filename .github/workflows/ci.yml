@@ -21,3 +21,5 @@ jobs:
           python scripts/generate_report.py examples/car-decision.json --run-id run_unknown --json-out /tmp/run_unknown.json --md-out /tmp/run_unknown.md
           python scripts/generate_report.py examples/car-decision-value-time-100.json --run-id run_value_time_100 --json-out /tmp/run_value_time_100.json --md-out /tmp/run_value_time_100.md
           python scripts/diff_runs.py /tmp/run_unknown.json /tmp/run_value_time_100.json
+      - name: Evaluate multi-option car scenario
+        run: python scripts/evaluate_car_options.py examples/car-options-comparison.json

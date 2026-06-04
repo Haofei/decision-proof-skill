@@ -1,0 +1,97 @@
+{
+  "decision": {
+    "id": "car_options_example",
+    "question": "Which car option should I choose?",
+    "type": "personal_finance_mobility",
+    "stakes": "medium",
+    "reversibility": "medium"
+  },
+  "variables": {
+    "monthly_after_tax_income": {"value": 5000, "unit": "USD/month", "confidence": 0.8, "source": "estimated"},
+    "value_of_time": {"value": 50, "unit": "USD/hour", "confidence": 0.6, "source": "assumption"},
+    "min_emergency_fund_months": {"value": 6, "unit": "months", "confidence": 0.9, "source": "assumption"},
+    "max_car_cost_income_ratio": {"value": 0.15, "unit": null, "confidence": 0.8, "source": "assumption"},
+    "hard_max_car_cost_income_ratio": {"value": 0.20, "unit": null, "confidence": 0.8, "source": "assumption"}
+  },
+  "options": [
+    {
+      "id": "no_car",
+      "label": "No car",
+      "baseline": true,
+      "model": {
+        "monthly_cost": 50,
+        "baseline_monthly_cost": 50,
+        "monthly_time_saved_hours": 0,
+        "emergency_fund_months_after": 20,
+        "expected_need_stability_months": 24
+      },
+      "evidence": {
+        "monthly_cost": {"source": "measured", "confidence": 0.9}
+      }
+    },
+    {
+      "id": "used_gas_car",
+      "label": "Used gas car",
+      "model": {
+        "monthly_cost": 300,
+        "baseline_monthly_cost": 50,
+        "monthly_time_saved_hours": 6,
+        "comfort_value_monthly": 40,
+        "optionality_value_monthly": 60,
+        "emergency_fund_months_after": 18,
+        "expected_need_stability_months": 24
+      },
+      "evidence": {
+        "monthly_cost": {"source": "quoted", "confidence": 0.75},
+        "monthly_time_saved_hours": {"source": "estimated", "confidence": 0.6}
+      }
+    },
+    {
+      "id": "used_ev",
+      "label": "Used EV",
+      "model": {
+        "monthly_cost": 360,
+        "baseline_monthly_cost": 50,
+        "monthly_time_saved_hours": 6,
+        "comfort_value_monthly": 50,
+        "optionality_value_monthly": 80,
+        "emergency_fund_months_after": 17,
+        "expected_need_stability_months": 24
+      },
+      "evidence": {
+        "monthly_cost": {"source": "estimated", "confidence": 0.55},
+        "charging_repair_risk": {"source": "guessed", "confidence": 0.4}
+      }
+    },
+    {
+      "id": "new_car",
+      "label": "New car",
+      "model": {
+        "monthly_cost": 1100,
+        "baseline_monthly_cost": 50,
+        "monthly_time_saved_hours": 6,
+        "comfort_value_monthly": 80,
+        "optionality_value_monthly": 80,
+        "emergency_fund_months_after": 10,
+        "expected_need_stability_months": 24
+      },
+      "evidence": {
+        "monthly_cost": {"source": "quoted", "confidence": 0.8}
+      }
+    },
+    {
+      "id": "wait_6_months",
+      "label": "Wait 6 months",
+      "model": {
+        "monthly_cost": null,
+        "baseline_monthly_cost": 50,
+        "monthly_time_saved_hours": null,
+        "emergency_fund_months_after": 20,
+        "expected_need_stability_months": null
+      },
+      "evidence": {
+        "future_price": {"source": "unknown", "confidence": 0.2}
+      }
+    }
+  ]
+}
