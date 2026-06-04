@@ -58,7 +58,10 @@ Use only these states:
 - `references/car-decision-model.md`: MVP car decision variables, rules, and thresholds.
 - `references/output-format.md`: Required user-facing answer structure.
 - `references/lean-backend.md`: Boundary and pipeline for generated Lean proof certificates.
+- `references/decision-workspace.md`: Productized workspace/report/diff model for Decision Proof.
 - `scripts/validate_ir.py`: Validate a Decision IR JSON file. Run as `python3 scripts/validate_ir.py <ir.json>`.
 - `scripts/evaluate_car_decision.py`: Evaluate a car-decision IR and emit proof state. Run as `python3 scripts/evaluate_car_decision.py <ir.json>`.
 - `scripts/sensitivity.py`: Estimate conclusion-flipping thresholds for car decisions. Run as `python3 scripts/sensitivity.py <ir.json>`.
 - `scripts/generate_lean_car_proof.py`: Generate a concrete Lean proof certificate for a car-decision IR and call `lean` to check it. Run as `python3 scripts/generate_lean_car_proof.py <ir.json>`.
+- `scripts/generate_report.py`: Generate a Markdown report and run artifact from a Decision IR. Run as `python3 scripts/generate_report.py <ir.json> --json-out <run.json> --md-out <report.md>`.
+- `scripts/diff_runs.py`: Compare two run artifacts and show decision diffs. Run as `python3 scripts/diff_runs.py <from-run.json> <to-run.json> --md`.

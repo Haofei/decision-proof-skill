@@ -16,3 +16,8 @@ jobs:
         run: python -m unittest discover -s tests
       - name: Validate example IR
         run: python scripts/validate_ir.py examples/car-decision.json
+      - name: Generate report and diff smoke test
+        run: |
+          python scripts/generate_report.py examples/car-decision.json --run-id run_unknown --json-out /tmp/run_unknown.json --md-out /tmp/run_unknown.md
+          python scripts/generate_report.py examples/car-decision-value-time-100.json --run-id run_value_time_100 --json-out /tmp/run_value_time_100.json --md-out /tmp/run_value_time_100.md
+          python scripts/diff_runs.py /tmp/run_unknown.json /tmp/run_value_time_100.json

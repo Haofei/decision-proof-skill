@@ -27,6 +27,17 @@ What would have to change for the conclusion to flip?
 - Uses Python for calculations and a Lean backend for proof-checked rule closure.
 - Produces conditional recommendations instead of pretending to know the future.
 
+## Decision Workspace Shape
+
+The product direction is a Decision Workspace rather than a plain chat surface:
+
+- Decision summary
+- Variables / evidence table
+- Proof goals
+- Sensitivity and flip conditions
+- Decision reports
+- Decision diffs between runs
+
 ## Current MVP
 
 The first implemented domain is personal car decisions. The current evaluator supports the narrow MVP:
@@ -91,6 +102,19 @@ Compute sensitivity thresholds:
 
 ```bash
 python3 scripts/sensitivity.py examples/car-decision.json
+```
+
+Generate a Decision Report:
+
+```bash
+python3 scripts/generate_report.py examples/car-decision.json --json-out /tmp/run_unknown.json --md-out /tmp/report.md
+```
+
+Compare two decision runs:
+
+```bash
+python3 scripts/generate_report.py examples/car-decision-value-time-100.json --json-out /tmp/run_value_time_100.json
+python3 scripts/diff_runs.py /tmp/run_unknown.json /tmp/run_value_time_100.json --md
 ```
 
 Generate and check a Lean proof:

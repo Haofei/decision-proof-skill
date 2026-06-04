@@ -1,0 +1,27 @@
+{
+  "decision": {
+    "id": "buy_car_example",
+    "question": "Should I buy a car?",
+    "type": "personal_finance_mobility",
+    "stakes": "medium",
+    "reversibility": "medium"
+  },
+  "options": [
+    {"id": "buy_car", "label": "Buy a car"},
+    {"id": "no_car", "label": "Do not buy a car"}
+  ],
+  "variables": {
+    "commute_days_per_month": {"value": 4, "unit": "days/month", "confidence": 0.8, "source": "estimated"},
+    "current_minutes_each_way": {"value": 60, "unit": "minutes", "confidence": 0.8, "source": "estimated"},
+    "car_minutes_each_way": {"value": 30, "unit": "minutes", "confidence": 0.7, "source": "estimated"},
+    "monthly_car_cost": {"value": 300, "unit": "USD/month", "confidence": 0.6, "source": "estimated"},
+    "current_transport_monthly_cost": {"value": 50, "unit": "USD/month", "confidence": 0.8, "source": "estimated"},
+    "monthly_after_tax_income": {"value": 5000, "unit": "USD/month", "confidence": 0.8, "source": "estimated"},
+    "emergency_fund_balance": {"value": 50000, "unit": "USD", "confidence": 0.8, "source": "estimated"},
+    "monthly_required_expenses": {"value": 2500, "unit": "USD/month", "confidence": 0.8, "source": "estimated"},
+    "value_of_time": {"value": 100, "unit": "USD/hour", "confidence": 0.6, "source": "estimated"},
+    "non_commute_trips_per_month": {"value": 10, "unit": "trips/month", "confidence": 0.7, "source": "estimated"},
+    "average_non_commute_minutes_saved": {"value": 0, "unit": "minutes/trip", "confidence": 0.6, "source": "estimated"},
+    "expected_need_stability_months": {"value": 6, "unit": "months", "confidence": 0.4, "source": "estimated"}
+  }
+}
