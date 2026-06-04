@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decision Proof"
+  short_description: "Turn decisions into auditable proof models"
+  default_prompt: "Use $decision-proof to model this decision, check assumptions, and show what would change the conclusion."
