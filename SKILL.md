@@ -59,6 +59,7 @@ Use only these states:
 - `references/output-format.md`: Required user-facing answer structure.
 - `references/lean-backend.md`: Boundary and pipeline for generated Lean proof certificates.
 - `references/decision-workspace.md`: Productized workspace/report/diff model for Decision Proof.
+- `references/product-architecture.md`: Domain pack, run artifact, API, and data-model direction for productization.
 - `scripts/validate_ir.py`: Validate a Decision IR JSON file. Run as `python3 scripts/validate_ir.py <ir.json>`.
 - `scripts/evaluate_car_decision.py`: Evaluate a car-decision IR and emit proof state. Run as `python3 scripts/evaluate_car_decision.py <ir.json>`.
 - `scripts/evaluate_car_options.py`: Evaluate and rank multiple car options. Run as `python3 scripts/evaluate_car_options.py <ir.json>`.

@@ -38,6 +38,8 @@ The product direction is a Decision Workspace rather than a plain chat surface:
 - Decision reports
 - Decision diffs between runs
 
+See `references/product-architecture.md` for the longer-term domain-pack, API, and data-model shape.
+
 ## Current MVP
 
 The first implemented domain is personal car decisions. It now has two evaluator levels:
