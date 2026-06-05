@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Any
 
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from core.domain_shared import evidence_quality_from_variables, goal, recommendation_status  # noqa: E402
+
+
 DEFAULTS = {
     "commute_days_per_month": 0,
     "current_minutes_each_way": 0,
@@ -54,30 +61,6 @@ def emergency_fund_months(ir: dict[str, Any]) -> float | None:
     if balance is not None and monthly_expenses and monthly_expenses > 0:
         return balance / monthly_expenses
     return None
-
-
-def evidence_quality(ir: dict[str, Any], names: list[str]) -> str:
-    variables = ir.get("variables", {})
-    confidences = []
-    weak_sources = {"guessed", "unknown"}
-    has_weak_source = False
-    for name in names:
-        variable = variables.get(name, {})
-        if isinstance(variable, dict):
-            if isinstance(variable.get("confidence"), (int, float)):
-                confidences.append(float(variable["confidence"]))
-            if variable.get("source") in weak_sources:
-                has_weak_source = True
-    if has_weak_source or (confidences and min(confidences) < 0.5):
-        return "weak"
-    if confidences and min(confidences) >= 0.75:
-        return "strong"
-    return "medium"
-
-
-def goal(goal_id: str, claim: str, status: str, reason: str, dependencies: list[str]) -> dict[str, Any]:
-    return {"id": goal_id, "claim": claim, "status": status, "reason": reason, "dependencies": dependencies}
-
 
 def missing_for(ir: dict[str, Any], names: list[str]) -> list[str]:
     return [name for name in names if value(ir, name, None) is None]
@@ -161,22 +144,17 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         car_cost_income_ratio is not None and car_cost_income_ratio > hard_max_ratio
     )
     open_required = bool(missing) or any(g["id"] == "G3" and g["status"] == "open" for g in goals)
-    evidence = evidence_quality(ir, ["monthly_car_cost", "current_minutes_each_way", "car_minutes_each_way", "value_of_time"])
-
-    if open_required:
-        status = "insufficient_evidence"
-    elif failed_hard:
-        status = "do_not_recommend"
-    elif net_monthly_value is not None and net_monthly_value > margin and evidence == "strong":
-        status = "recommend"
-    elif net_monthly_value is not None and net_monthly_value > margin:
-        status = "lean_yes"
-    else:
-        status = "lean_no"
+    evidence = evidence_quality_from_variables(ir, ["monthly_car_cost", "current_minutes_each_way", "car_minutes_each_way", "value_of_time"])
+    status = recommendation_status(
+        hard_failed=failed_hard,
+        open_required=open_required,
+        positive_case=net_monthly_value is not None and net_monthly_value > margin,
+        evidence_quality=evidence,
+    )
 
     return {
         "derived_values": {
-            "monthly_commute_time_saved_hours": round(commute_time_saved, 2),
+            "monthly_commute_time_saved_hours": round(commute_time_saved, 2) if commute_time_saved is not None else None,
             "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2) if non_commute_time_saved is not None else None,
             "monthly_time_saved_hours": round(total_time_saved, 2) if total_time_saved is not None else None,
             "monthly_time_value": round(monthly_time_value, 2) if monthly_time_value is not None else None,

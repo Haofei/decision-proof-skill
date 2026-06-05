@@ -1,0 +1,13 @@
+key: car
+decision_types:
+  - personal_finance_mobility
+summary: Personal car purchase and mobility tradeoff model.
+required_variables:
+  - monthly_after_tax_income
+  - value_of_time
+outputs:
+  - derived_values
+  - proof_state
+  - recommendation
+  - sensitivity
+verifier: lean

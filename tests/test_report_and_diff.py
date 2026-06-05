@@ -29,9 +29,35 @@ class ReportAndDiffTests(unittest.TestCase):
         markdown = report_mod.render_markdown(run)
 
         self.assertIn("## Current Conclusion", markdown)
+        self.assertIn("## Decision Guidance", markdown)
         self.assertIn("## Variables / Evidence Table", markdown)
         self.assertIn("Verification: OPEN", markdown)
         self.assertIn("`value_of_time` | unknown", markdown)
+
+    def test_car_report_guidance_prioritizes_decision_defining_unknown(self):
+        ir_path = ROOT / "examples" / "car-decision.json"
+        ir = report_mod.load_json(ir_path)
+
+        run = report_mod.make_run(ir, ir_path, "guided_run")
+        markdown = report_mod.render_markdown(run)
+
+        self.assertIn("$62.5/hour", run["guidance"]["focus"])
+        self.assertIn("Emergency-fund safety and income affordability already pass", run["guidance"]["deprioritize"])
+        self.assertIn("Do not force a conclusion yet", markdown)
+        self.assertIn("what one regained hour is actually worth", markdown)
+
+    def test_option_comparison_report_uses_core_runtime(self):
+        ir_path = ROOT / "examples" / "car-options-comparison.json"
+        ir = report_mod.load_json(ir_path)
+
+        run = report_mod.make_run(ir, ir_path, "options_run")
+        markdown = report_mod.render_markdown(run)
+
+        self.assertEqual(run["recommendation"]["best_option"], "used_gas_car")
+        self.assertEqual(run["domain"], "car")
+        self.assertIn("## Option Ranking", markdown)
+        self.assertIn("used_gas_car", markdown)
+        self.assertIn("Best actionable option is Used gas car", markdown)
 
     def test_diff_reports_recommendation_and_variable_changes(self):
         from_path = ROOT / "examples" / "car-decision.json"

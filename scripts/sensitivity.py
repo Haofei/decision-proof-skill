@@ -66,23 +66,30 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
 
     known_time_saved = (commute_time_saved or 0.0) + (non_commute_time_saved or 0.0)
 
+    if monthly_car_cost is None:
+        unknowns.append("monthly_car_cost")
+    if current_transport_cost is None:
+        unknowns.append("current_transport_monthly_cost")
+
     non_time_value = comfort_value + optionality_value
-    incremental_cost = monthly_car_cost - current_transport_cost
+    incremental_cost = (
+        None if monthly_car_cost is None or current_transport_cost is None else monthly_car_cost - current_transport_cost
+    )
 
     break_even_monthly_car_cost = None
-    if value_of_time is not None:
+    if value_of_time is not None and current_transport_cost is not None:
         break_even_incremental_cost = known_time_saved * value_of_time + non_time_value - margin
         break_even_monthly_car_cost = current_transport_cost + break_even_incremental_cost
     break_even_value_of_time = None
-    if known_time_saved > 0:
+    if known_time_saved > 0 and incremental_cost is not None:
         break_even_value_of_time = (incremental_cost - non_time_value + margin) / known_time_saved
 
     break_even_time_saved_hours = None
-    if value_of_time and value_of_time > 0:
+    if value_of_time and value_of_time > 0 and incremental_cost is not None:
         break_even_time_saved_hours = (incremental_cost - non_time_value + margin) / value_of_time
 
     required_lifestyle_premium = None
-    if value_of_time is not None:
+    if value_of_time is not None and incremental_cost is not None:
         required_lifestyle_premium = max(0.0, incremental_cost - (known_time_saved * value_of_time) + margin)
 
     return {
@@ -90,8 +97,8 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
             "known_monthly_time_saved_hours": round(known_time_saved, 2),
             "monthly_commute_time_saved_hours": round(commute_time_saved, 2) if commute_time_saved is not None else None,
             "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2) if non_commute_time_saved is not None else None,
-            "monthly_car_cost": round(monthly_car_cost, 2),
-            "incremental_cost": round(incremental_cost, 2),
+            "monthly_car_cost": round(monthly_car_cost, 2) if monthly_car_cost is not None else None,
+            "incremental_cost": round(incremental_cost, 2) if incremental_cost is not None else None,
             "value_of_time": round(value_of_time, 2) if value_of_time is not None else None,
             "comfort_plus_optionality": round(non_time_value, 2),
             "unknown_variables": sorted(set(unknowns)),

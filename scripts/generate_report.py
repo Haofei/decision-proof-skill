@@ -5,28 +5,19 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
-import subprocess
-import tempfile
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-
-def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    spec.loader.exec_module(module)
-    return module
-
-
-evaluate_mod = load_module("evaluate_car_decision", ROOT / "scripts" / "evaluate_car_decision.py")
-sensitivity_mod = load_module("sensitivity", ROOT / "scripts" / "sensitivity.py")
+from core.domain_runtime import DomainRuntimeError, domain_key, evaluate, guidance, thresholds, verify  # noqa: E402
+from core.domain_shared import error_payload  # noqa: E402
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -64,39 +55,17 @@ def variable_rows(ir: dict[str, Any], proof_state: dict[str, Any]) -> list[dict[
     return rows
 
 
-def run_lean_if_possible(ir_path: Path) -> dict[str, Any]:
-    with tempfile.TemporaryDirectory(prefix="decision-proof-report-") as tempdir:
-        lean_path = Path(tempdir) / "CarDecisionProof.lean"
-        proc = subprocess.run(
-            [
-                "python3",
-                str(ROOT / "scripts" / "generate_lean_car_proof.py"),
-                str(ir_path),
-                "--out",
-                str(lean_path),
-            ],
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        try:
-            parsed = json.loads(proc.stdout)
-        except json.JSONDecodeError:
-            parsed = {"ok": False, "error": proc.stderr or proc.stdout}
-        parsed["returncode"] = proc.returncode
-        return parsed
-
-
 def make_run(ir: dict[str, Any], ir_path: Path, run_id: str | None = None) -> dict[str, Any]:
-    evaluation = evaluate_mod.evaluate(ir)
-    sensitivity = sensitivity_mod.thresholds(ir)
-    verifier = run_lean_if_possible(ir_path)
+    evaluation = evaluate(ir)
+    sensitivity = thresholds(ir)
+    verifier = verify(ir, ir_path)
     created_at = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     decision_id = ir.get("decision", {}).get("id", "decision")
 
-    return {
+    run = {
         "run_id": run_id or f"run_{created_at}",
         "decision_id": decision_id,
+        "domain": domain_key(ir),
         "created_at": created_at,
         "input_ir_hash": canonical_hash(ir),
         "input_ir": ir,
@@ -106,6 +75,10 @@ def make_run(ir: dict[str, Any], ir_path: Path, run_id: str | None = None) -> di
         "sensitivity": sensitivity,
         "verifier_result": verifier,
     }
+    if "comparison" in evaluation:
+        run["comparison"] = evaluation["comparison"]
+    run["guidance"] = guidance(ir, run)
+    return run
 
 
 def format_value(value: Any) -> str:
@@ -139,6 +112,8 @@ def render_markdown(run: dict[str, Any]) -> str:
     proof_state = run["proof_state"]
     sensitivity = run["sensitivity"]
     variables = variable_rows(ir, proof_state)
+    comparison = run.get("comparison", {})
+    guidance = run.get("guidance", {})
 
     lines = [
         f"# Decision Report: {decision.get('question', decision.get('id', 'Untitled decision'))}",
@@ -148,13 +123,45 @@ def render_markdown(run: dict[str, Any]) -> str:
         f"- Status: `{recommendation.get('status')}`",
         f"- Evidence quality: `{recommendation.get('evidence_quality')}`",
         f"- Verification: {verifier_badge(run.get('verifier_result', {}))}",
-        "",
-        "## Key Derived Values",
-        "",
     ]
+
+    if guidance.get("summary"):
+        lines.append(f"- Actionable conclusion: {guidance['summary']}")
+
+    lines.extend(
+        [
+            "",
+            "## Decision Guidance",
+            "",
+            f"- Focus on: {guidance.get('focus')}",
+            f"- Do not overthink: {guidance.get('deprioritize')}",
+            f"- Next step: {guidance.get('next_step')}",
+        ]
+    )
+    if guidance.get("tradeoff"):
+        lines.append(f"- Price the soft factor honestly: {guidance['tradeoff']}")
+
+    lines.extend(
+        [
+            "",
+            "## Key Derived Values",
+            "",
+        ]
+    )
 
     for key, value in derived.items():
         lines.append(f"- `{key}`: {format_value(value)}")
+
+    if comparison.get("options"):
+        lines.extend(["", "## Option Ranking", ""])
+        ranking = comparison.get("ranking", [])
+        options_by_id = {option.get("id"): option for option in comparison.get("options", [])}
+        for option_id in ranking:
+            option = options_by_id.get(option_id, {})
+            net_value = option.get("derived_values", {}).get("net_monthly_value")
+            lines.append(
+                f"- `{option.get('label', option_id)}` ({option_id}): `{option.get('status')}`, net_monthly_value={format_value(net_value)}"
+            )
 
     lines.extend(["", "## Flip Conditions", ""])
     for key, value in sensitivity.get("flip_conditions", {}).items():
@@ -211,19 +218,23 @@ def main() -> int:
     parser.add_argument("--md-out", type=Path)
     args = parser.parse_args()
 
-    ir = load_json(args.ir_json)
-    run = make_run(ir, args.ir_json, args.run_id)
-    markdown = render_markdown(run)
+    try:
+        ir = load_json(args.ir_json)
+        run = make_run(ir, args.ir_json, args.run_id)
+        markdown = render_markdown(run)
 
-    if args.json_out:
-        args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        args.json_out.write_text(json.dumps(run, indent=2), encoding="utf-8")
-    if args.md_out:
-        args.md_out.parent.mkdir(parents=True, exist_ok=True)
-        args.md_out.write_text(markdown, encoding="utf-8")
-    if not args.json_out and not args.md_out:
-        print(markdown)
-    return 0
+        if args.json_out:
+            args.json_out.parent.mkdir(parents=True, exist_ok=True)
+            args.json_out.write_text(json.dumps(run, indent=2), encoding="utf-8")
+        if args.md_out:
+            args.md_out.parent.mkdir(parents=True, exist_ok=True)
+            args.md_out.write_text(markdown, encoding="utf-8")
+        if not args.json_out and not args.md_out:
+            print(markdown)
+        return 0
+    except (DomainRuntimeError, ValueError) as exc:
+        print(json.dumps(error_payload(exc), indent=2))
+        return 1
 
 
 if __name__ == "__main__":

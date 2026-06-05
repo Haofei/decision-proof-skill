@@ -40,6 +40,25 @@ class SensitivityTests(unittest.TestCase):
         self.assertEqual(result["flip_conditions"]["break_even_value_of_time"], 62.5)
         self.assertIn("average_non_commute_minutes_saved", result["current"]["unknown_variables"])
 
+    def test_unknown_monthly_car_cost_does_not_crash(self):
+        ir = {
+            "variables": {
+                "commute_days_per_month": {"value": 4},
+                "current_minutes_each_way": {"value": 60},
+                "car_minutes_each_way": {"value": 30},
+                "monthly_car_cost": {"value": None, "status": "unknown"},
+                "current_transport_monthly_cost": {"value": 50},
+                "value_of_time": {"value": 50},
+            }
+        }
+
+        result = sensitivity_mod.thresholds(ir)
+
+        self.assertIsNone(result["current"]["incremental_cost"])
+        self.assertIsNone(result["current"]["monthly_car_cost"])
+        self.assertIsNone(result["flip_conditions"]["break_even_value_of_time"])
+        self.assertIn("monthly_car_cost", result["current"]["unknown_variables"])
+
 
 if __name__ == "__main__":
     unittest.main()

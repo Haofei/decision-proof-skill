@@ -9,6 +9,13 @@ import sys
 from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from core.domain_runtime import validation_errors  # noqa: E402
+
+
 REQUIRED_TOP_LEVEL = ["decision", "options", "variables"]
 ALLOWED_VARIABLE_STATUS = {"known", "unknown", "assumption"}
 
@@ -86,6 +93,8 @@ def validate(ir: dict) -> list[str]:
             for dep in rule.get("dependencies", []):
                 if dep not in variable_names:
                     errors.append(f"rules[{index}] dependency not found in variables: {dep}")
+
+    errors.extend(validation_errors(ir))
 
     return errors
 

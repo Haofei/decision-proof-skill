@@ -9,7 +9,12 @@ description: Build conditional, auditable decision models from real-world choice
 
 Use this skill to turn an ambiguous real-world decision into a conditional proof model. Do not directly decide for the user. Show what follows from the stated premises, what remains unproven, and what variable changes would flip the conclusion.
 
-The first MVP domain is personal car decisions. For car questions, read `references/car-decision-model.md` and use the scripts in `scripts/` with `python3 scripts/<name>.py ...` when a concrete IR or enough variables are available.
+Supported domains now route through `core/domain_runtime.py`, which resolves `decision.type` using `domains/*/model.yaml`.
+
+- `personal_finance_mobility` -> `domains/car/`
+- `graduate_school` / `education_career` -> `domains/graduate_school/`
+
+For car questions, read `references/car-decision-model.md`. For graduate-school questions, use the break-even framing from `examples/graduate-school-notes.md` and `examples/graduate-school-decision.json`.
 
 ## Core Rule
 
@@ -61,6 +66,7 @@ Use only these states:
 - `references/decision-workspace.md`: Productized workspace/report/diff model for Decision Proof.
 - `references/product-architecture.md`: Domain pack, run artifact, API, and data-model direction for productization.
 - `scripts/validate_ir.py`: Validate a Decision IR JSON file. Run as `python3 scripts/validate_ir.py <ir.json>`.
+- `scripts/evaluate_decision.py`: Evaluate any supported Decision IR JSON file through the domain runtime. Run as `python3 scripts/evaluate_decision.py <ir.json>`.
 - `scripts/evaluate_car_decision.py`: Evaluate a car-decision IR and emit proof state. Run as `python3 scripts/evaluate_car_decision.py <ir.json>`.
 - `scripts/evaluate_car_options.py`: Evaluate and rank multiple car options. Run as `python3 scripts/evaluate_car_options.py <ir.json>`.
 - `scripts/sensitivity.py`: Estimate conclusion-flipping thresholds for car decisions. Run as `python3 scripts/sensitivity.py <ir.json>`.

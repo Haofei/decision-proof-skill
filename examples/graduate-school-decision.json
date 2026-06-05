@@ -1,0 +1,22 @@
+{
+  "decision": {
+    "id": "graduate_school_example",
+    "question": "Should I go to graduate school or work directly?",
+    "type": "graduate_school",
+    "stakes": "high",
+    "reversibility": "low"
+  },
+  "options": [
+    {"id": "graduate_school", "label": "Go to graduate school"},
+    {"id": "work_directly", "label": "Work directly"}
+  ],
+  "variables": {
+    "study_years": {"value": 2, "unit": "years", "confidence": 0.9, "source": "measured"},
+    "annual_tuition_living_cost": {"value": 30000, "unit": "USD/year", "confidence": 0.8, "source": "quoted"},
+    "direct_work_salary": {"value": 100000, "unit": "USD/year", "confidence": 0.8, "source": "quoted"},
+    "post_grad_expected_salary": {"value": 150000, "unit": "USD/year", "confidence": 0.6, "source": "estimated"},
+    "savings": {"value": 10000, "unit": "USD", "confidence": 0.9, "source": "measured"},
+    "loan_required": {"value": "yes", "unit": null, "confidence": 0.8, "source": "estimated"},
+    "risk_tolerance": {"value": "low", "unit": null, "confidence": 0.8, "source": "estimated"}
+  }
+}

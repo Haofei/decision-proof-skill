@@ -6,14 +6,29 @@ The same structure is used by `scripts/generate_report.py`, which emits a Markdo
 
 ## 1. Current Conclusion
 
-State the recommendation status and strength:
+State the recommendation status and strength, but make it executable rather than merely analytical:
 
 ```text
 Current conclusion: lean_no.
-Under the current premises, buying the car is not supported by the pure money/time model. It becomes reasonable only if you are willing to pay about $185/month for comfort and optionality.
+Tilt against buying. On the current numbers, this is effectively a $185/month comfort and flexibility purchase.
 ```
 
-## 2. Key Derivation
+## 2. Decision Guidance
+
+Immediately tell the user what to focus on, what not to overthink, and what to do next:
+
+```text
+Focus on:
+The decision currently turns on one unknown: whether your time is worth at least $62.5/hour.
+
+Do not overthink:
+Emergency-fund safety and affordability already pass; do not keep re-estimating them unless the numbers materially change.
+
+Next step:
+Decide what one regained hour is actually worth to you before tuning anything else.
+```
+
+## 3. Key Derivation
 
 Show the decisive calculation in plain language:
 
@@ -31,7 +46,7 @@ Net monthly value:
 $665 - $850 = -$185/month
 ```
 
-## 3. Hard Constraint Status
+## 4. Hard Constraint Status
 
 Use check-style text:
 
@@ -42,7 +57,7 @@ Hard constraints:
 - Unknown: future need stability over 24 months.
 ```
 
-## 4. Open Goals
+## 5. Open Goals
 
 List unclosed proof goals:
 
@@ -53,9 +68,9 @@ Open goals:
 - Future work/location stability is assumed.
 ```
 
-## 5. Sensitive Variables
+## 6. Sensitive Variables
 
-List variables most likely to flip the conclusion:
+List the variables most likely to flip the conclusion, but prefer naming the dominant one and demoting the rest:
 
 ```text
 Sensitive variables:
@@ -65,7 +80,7 @@ Sensitive variables:
 - future commute/location stability
 ```
 
-## 6. Next Most Valuable Evidence
+## 7. Next Most Valuable Evidence
 
 Ask for the smallest useful evidence set:
 

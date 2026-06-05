@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -98,6 +100,32 @@ class CarDecisionTests(unittest.TestCase):
         self.assertEqual(benefit_goal["status"], "open")
         self.assertIn("value_of_time", benefit_goal["dependencies"])
 
+    def test_unknown_commute_input_opens_goal_without_crashing(self):
+        ir = base_ir()
+        ir["variables"]["commute_days_per_month"]["value"] = None
+        ir["variables"]["commute_days_per_month"]["status"] = "unknown"
+        ir["variables"]["commute_days_per_month"]["source"] = "unknown"
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertIsNone(result["derived_values"]["monthly_commute_time_saved_hours"])
+        self.assertIsNone(result["derived_values"]["net_monthly_value"])
+        self.assertEqual(result["recommendation"]["status"], "insufficient_evidence")
+        benefit_goal = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "benefit_exceeds_incremental_cost")
+        self.assertEqual(benefit_goal["status"], "open")
+        self.assertIn("commute_days_per_month", benefit_goal["dependencies"])
+
+    def test_hard_constraint_beats_open_unknowns(self):
+        ir = base_ir()
+        ir["variables"]["emergency_fund_months_after"]["value"] = 2
+        ir["variables"]["value_of_time"]["value"] = None
+        ir["variables"]["value_of_time"]["status"] = "unknown"
+        ir["variables"]["value_of_time"]["source"] = "unknown"
+
+        result = evaluate_mod.evaluate(ir)
+
+        self.assertEqual(result["recommendation"]["status"], "do_not_recommend")
+
     def test_hard_threshold_rounding(self):
         ir = base_ir()
         ir["variables"]["monthly_car_cost"]["value"] = 1000
@@ -126,6 +154,15 @@ class CarDecisionTests(unittest.TestCase):
         errors = validate_mod.validate(ir)
 
         self.assertTrue(any("status must be 'unknown'" in error for error in errors))
+
+    def test_validator_uses_domain_model_required_variables(self):
+        ir = base_ir()
+        del ir["variables"]["monthly_after_tax_income"]
+
+        errors = validate_mod.validate(ir)
+
+        self.assertTrue(any("missing required variables for domain 'car'" in error for error in errors))
+        self.assertTrue(any("monthly_after_tax_income" in error for error in errors))
 
     def test_lean_generator_refuses_unknown_numeric_inputs(self):
         ir = base_ir()

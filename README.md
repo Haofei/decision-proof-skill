@@ -42,6 +42,16 @@ See `references/product-architecture.md` for the longer-term domain-pack, API, a
 
 ## Current MVP
 
+The repository now routes evaluation through a small domain runtime:
+
+```text
+core/domain_runtime.py
+  resolves decision.type via domains/*/model.yaml
+
+scripts/evaluate_decision.py
+  evaluates any supported domain through that runtime
+```
+
 The first implemented domain is personal car decisions. It now has two evaluator levels:
 
 ```text
@@ -54,7 +64,7 @@ evaluate_car_options.py:
 
 The option-based evaluator is still intentionally small, but it supports the Scenario Comparison shape: each option has its own cost, time, risk, evidence quality, proof goals, status, main risk, and ranking.
 
-The same pattern has also been tested manually on a graduate-school decision:
+The same pattern is now implemented as a second domain for a graduate-school decision:
 
 ```text
 Should I go to graduate school or work directly?
@@ -95,6 +105,14 @@ Validate a Decision IR JSON file:
 
 ```bash
 python3 scripts/validate_ir.py examples/car-decision.json
+python3 scripts/validate_ir.py examples/graduate-school-decision.json
+```
+
+Evaluate any supported decision through the domain runtime:
+
+```bash
+python3 scripts/evaluate_decision.py examples/car-decision.json
+python3 scripts/evaluate_decision.py examples/graduate-school-decision.json
 ```
 
 Evaluate a car decision:
@@ -119,6 +137,7 @@ Generate a Decision Report:
 
 ```bash
 python3 scripts/generate_report.py examples/car-decision.json --json-out /tmp/run_unknown.json --md-out /tmp/report.md
+python3 scripts/generate_report.py examples/graduate-school-decision.json --json-out /tmp/grad_run.json --md-out /tmp/grad_report.md
 ```
 
 Compare two decision runs:
@@ -141,6 +160,22 @@ Run tests:
 ```bash
 python3 -m unittest discover -s tests
 ```
+
+## Domain Packs
+
+Supported domain packs currently live under:
+
+```text
+domains/
+  car/
+    model.yaml
+    domain.py
+  graduate_school/
+    model.yaml
+    domain.py
+```
+
+`model.yaml` now drives runtime routing metadata and domain-level validation for `scripts/validate_ir.py`.
 
 ## Design Boundary
 

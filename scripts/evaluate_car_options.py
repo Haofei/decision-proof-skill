@@ -5,8 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from core.domain_shared import evidence_quality_from_records, goal, recommendation_status  # noqa: E402
 
 
 DEFAULTS = {
@@ -47,37 +55,6 @@ def model_value(option: dict[str, Any], name: str, default: float | None = None)
         return default
     raw = model[name]
     return None if raw is None else float(raw)
-
-
-def evidence_quality(option: dict[str, Any]) -> str:
-    evidence = option.get("evidence", {})
-    confidences = []
-    weak = False
-    for item in evidence.values():
-        if not isinstance(item, dict):
-            continue
-        source = item.get("source")
-        confidence = item.get("confidence")
-        if source in {"unknown", "guessed"}:
-            weak = True
-        if isinstance(confidence, (int, float)):
-            confidences.append(float(confidence))
-    if weak or any(confidence < 0.5 for confidence in confidences):
-        return "weak"
-    if confidences and min(confidences) >= 0.75:
-        return "strong"
-    return "medium"
-
-
-def goal(goal_id: str, claim: str, status: str, reason: str, dependencies: list[str]) -> dict[str, Any]:
-    return {
-        "id": goal_id,
-        "claim": claim,
-        "status": status,
-        "reason": reason,
-        "dependencies": dependencies,
-    }
-
 
 def evaluate_option(ir: dict[str, Any], option: dict[str, Any]) -> dict[str, Any]:
     option_id = option.get("id")
@@ -151,20 +128,14 @@ def evaluate_option(ir: dict[str, Any], option: dict[str, Any]) -> dict[str, Any
 
     hard_failed = any(goal_item["id"] in {"G1", "G2"} and goal_item["status"] == "failed" for goal_item in goals)
     open_required = any(goal_item["status"] == "open" for goal_item in goals if goal_item["id"] in {"G1", "G2", "G3"})
-    option_evidence = evidence_quality(option)
-
-    if baseline:
-        status = "baseline"
-    elif hard_failed:
-        status = "do_not_recommend"
-    elif open_required:
-        status = "insufficient_evidence"
-    elif net_monthly_value is not None and net_monthly_value > margin and option_evidence == "strong":
-        status = "recommend"
-    elif net_monthly_value is not None and net_monthly_value > margin:
-        status = "lean_yes"
-    else:
-        status = "lean_no"
+    option_evidence = evidence_quality_from_records(option.get("evidence", {}).values())
+    status = recommendation_status(
+        hard_failed=hard_failed,
+        open_required=open_required,
+        positive_case=net_monthly_value is not None and net_monthly_value > margin,
+        evidence_quality=option_evidence,
+        baseline=baseline,
+    )
 
     main_risk = None
     failed_or_open = [goal_item for goal_item in goals if goal_item["status"] in {"failed", "open", "assumption"}]
