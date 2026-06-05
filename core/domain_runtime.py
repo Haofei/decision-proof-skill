@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from core.domain_metadata import DomainSpec, domain_specs  # noqa: E402
 from core.guidance import default_guidance  # noqa: E402
+from core.next_questions import default_next_questions  # noqa: E402
 from core.domain_shared import load_module  # noqa: E402
 
 
@@ -105,3 +106,30 @@ def guidance(ir: dict[str, Any], run: dict[str, Any]) -> dict[str, str]:
     if hasattr(module, "guidance"):
         return module.guidance(run)
     return default_guidance(run)
+
+
+def next_questions(ir: dict[str, Any], run: dict[str, Any] | None = None) -> dict[str, Any]:
+    _, module = load_domain(ir)
+    active_run = run
+    if active_run is None:
+        evaluation = evaluate(ir)
+        active_run = {
+            "domain": domain_key(ir),
+            "input_ir": ir,
+            "derived_values": evaluation["derived_values"],
+            "proof_state": evaluation["proof_state"],
+            "recommendation": evaluation["recommendation"],
+            "sensitivity": thresholds(ir),
+        }
+        if "comparison" in evaluation:
+            active_run["comparison"] = evaluation["comparison"]
+    if hasattr(module, "next_questions"):
+        return module.next_questions(ir, active_run)
+    return default_next_questions(ir, active_run)
+
+
+def derived_value_dependencies(ir: dict[str, Any], run: dict[str, Any]) -> dict[str, list[str]]:
+    _, module = load_domain(ir)
+    if hasattr(module, "derived_value_dependencies"):
+        return module.derived_value_dependencies(run)
+    return {}

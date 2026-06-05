@@ -59,6 +59,7 @@ class CarDecisionTests(unittest.TestCase):
 
         self.assertEqual(result["recommendation"]["status"], "do_not_recommend")
         self.assertEqual(result["proof_state"]["goals"][0]["status"], "failed")
+        self.assertEqual(result["proof_state"]["goals"][0]["severity"], "hard")
 
     def test_missing_income_is_insufficient_evidence(self):
         ir = base_ir()
@@ -137,6 +138,7 @@ class CarDecisionTests(unittest.TestCase):
         self.assertNotEqual(result["recommendation"]["status"], "do_not_recommend")
         affordability = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "income_affordability")
         self.assertEqual(affordability["status"], "failed")
+        self.assertEqual(affordability["severity"], "warning")
         self.assertIn("20.0%", affordability["reason"])
 
     def test_validator_accepts_unknown_null_with_status(self):

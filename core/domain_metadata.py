@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -65,20 +66,34 @@ def load_model_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def load_manifest_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @lru_cache(maxsize=1)
 def domain_specs() -> tuple[DomainSpec, ...]:
     specs = []
-    for model_path in sorted((ROOT / "domains").glob("*/model.yaml")):
-        metadata = load_model_yaml(model_path)
+    for domain_dir in sorted((ROOT / "domains").glob("*/")):
+        manifest_path = domain_dir / "manifest.json"
+        model_path = domain_dir / "model.yaml"
+        if manifest_path.exists():
+            metadata = load_manifest_json(manifest_path)
+            metadata_path = manifest_path
+        elif model_path.exists():
+            metadata = load_model_yaml(model_path)
+            metadata_path = model_path
+        else:
+            continue
+        entry_point = str(metadata.get("entry_point") or "domain.py")
         specs.append(
             DomainSpec(
-                key=str(metadata.get("key") or model_path.parent.name).strip(),
+                key=str(metadata.get("key") or domain_dir.name).strip(),
                 decision_types=tuple(str(item) for item in metadata.get("decision_types", [])),
                 required_variables=tuple(str(item) for item in metadata.get("required_variables", [])),
                 summary=str(metadata.get("summary")) if metadata.get("summary") is not None else None,
                 verifier=str(metadata.get("verifier")) if metadata.get("verifier") is not None else None,
-                module_path=model_path.parent / "domain.py",
-                model_path=model_path,
+                module_path=domain_dir / entry_point,
+                model_path=metadata_path,
             )
         )
     return tuple(specs)

@@ -1,2 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decision-proof"
+version = "0.1.0"
+description = "Decision compiler and proof runtime for structured, auditable decisions"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+decision-proof = "decision_proof.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["core*", "decision_proof*", "domains*", "schemas*", "scripts*"]
+
+[tool.setuptools.package-data]
+schemas = ["*.json"]
+"domains.car" = ["manifest.json", "model.yaml"]
+"domains.graduate_school" = ["manifest.json", "model.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

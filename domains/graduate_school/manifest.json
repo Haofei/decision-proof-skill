@@ -1,0 +1,24 @@
+{
+  "key": "graduate_school",
+  "decision_types": [
+    "graduate_school",
+    "education_career"
+  ],
+  "summary": "Graduate school vs direct work break-even model.",
+  "required_variables": [
+    "study_years",
+    "annual_tuition_living_cost",
+    "direct_work_salary",
+    "post_grad_expected_salary"
+  ],
+  "outputs": [
+    "derived_values",
+    "proof_state",
+    "recommendation",
+    "sensitivity",
+    "guidance"
+  ],
+  "verifier": "none",
+  "entry_point": "domain.py",
+  "questions_path": "questions.md"
+}

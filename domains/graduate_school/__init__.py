@@ -1,0 +1,1 @@
+"""Graduate-school domain package."""

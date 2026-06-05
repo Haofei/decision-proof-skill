@@ -1,0 +1,1 @@
+"""Package-first compatibility layer for core runtime modules."""

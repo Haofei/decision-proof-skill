@@ -15,12 +15,14 @@ from core.domain_shared import (  # noqa: E402
     boolish,
     evidence_quality_from_variables,
     goal,
+    has_failed_goal,
     numeric_ir_value,
     raw_variable_value,
     recommendation_status,
     text_variable_value,
 )
 from core.guidance import format_currency, goal_lookup  # noqa: E402
+from core.next_questions import low_evidence_variables, package_questions, question_item, variable_record  # noqa: E402
 
 
 DEFAULTS = {
@@ -67,6 +69,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "open",
                 "salary premium cannot be computed without current and post-grad salary",
                 ["direct_work_salary", "post_grad_expected_salary"],
+                severity="warning",
             )
         )
     elif annual_salary_premium > 0:
@@ -77,6 +80,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "closed",
                 f"annual salary premium is ${annual_salary_premium:.0f}",
                 ["direct_work_salary", "post_grad_expected_salary"],
+                severity="soft",
             )
         )
     else:
@@ -87,6 +91,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "failed",
                 f"annual salary premium is ${annual_salary_premium:.0f}",
                 ["direct_work_salary", "post_grad_expected_salary"],
+                severity="hard",
             )
         )
 
@@ -104,6 +109,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                     "post_grad_expected_salary",
                     "risk_tolerance",
                 ],
+                severity="warning",
             )
         )
     elif payback_years <= risk_window:
@@ -114,6 +120,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "closed",
                 f"payback is {payback_years:.1f} years, inside the {risk_window:.1f}-year risk window",
                 ["study_years", "annual_tuition_living_cost", "direct_work_salary", "post_grad_expected_salary", "risk_tolerance"],
+                severity="soft",
             )
         )
     else:
@@ -124,6 +131,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "failed",
                 f"payback is {payback_years:.1f} years, above the {risk_window:.1f}-year risk window",
                 ["study_years", "annual_tuition_living_cost", "direct_work_salary", "post_grad_expected_salary", "risk_tolerance"],
+                severity="warning",
             )
         )
 
@@ -135,6 +143,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "open",
                 "funding gap cannot be computed without tuition/living cost and savings",
                 ["annual_tuition_living_cost", "study_years", "savings", "loan_required"],
+                severity="warning",
             )
         )
     elif funding_gap <= 0:
@@ -145,6 +154,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "closed",
                 "available savings cover the direct cash cost",
                 ["annual_tuition_living_cost", "study_years", "savings"],
+                severity="soft",
             )
         )
     elif loan_required is True and risk_tolerance == "low":
@@ -155,6 +165,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "failed",
                 f"requires about ${funding_gap:.0f} of debt while risk tolerance is low",
                 ["annual_tuition_living_cost", "study_years", "savings", "loan_required", "risk_tolerance"],
+                severity="hard",
             )
         )
     elif loan_required is True:
@@ -165,6 +176,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "assumption",
                 f"requires about ${funding_gap:.0f} of debt financing",
                 ["annual_tuition_living_cost", "study_years", "savings", "loan_required"],
+                severity="warning",
             )
         )
     else:
@@ -175,10 +187,11 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
                 "open",
                 f"about ${funding_gap:.0f} of funding gap remains unexplained",
                 ["annual_tuition_living_cost", "study_years", "savings", "loan_required"],
+                severity="warning",
             )
         )
 
-    hard_failed = any(item["id"] in {"G1", "G3"} and item["status"] == "failed" for item in goals)
+    hard_failed = has_failed_goal(goals, severity="hard")
     open_required = any(item["id"] in {"G1", "G2"} and item["status"] == "open" for item in goals)
     evidence = evidence_quality_from_variables(
         ir,
@@ -330,4 +343,91 @@ def guidance(run: dict[str, Any]) -> dict[str, str]:
         "focus": "Salary upside and funding path remain the dominant levers in this decision.",
         "deprioritize": "Do not spread effort evenly across every estimate; start with the salary range and funding path.",
         "next_step": "Validate the post-grad salary range and the funding path before changing smaller assumptions.",
+    }
+
+
+def next_questions(ir: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
+    proof_state = run.get("proof_state", {})
+    goal_map = goal_lookup(proof_state)
+    current = run.get("sensitivity", {}).get("current", {})
+    flip = run.get("sensitivity", {}).get("flip_conditions", {})
+    funding_gap = current.get("funding_gap")
+    break_even_salary = flip.get("break_even_post_grad_salary_for_risk_window")
+
+    items = []
+
+    if goal_map.get("funding_path_clear", {}).get("status") in {"failed", "open", "assumption"}:
+        gap_text = format_currency(funding_gap) if isinstance(funding_gap, (int, float)) else "the current cash gap"
+        items.append(
+            question_item(
+                question_id="graduate_school.funding_path",
+                question="What funding is actually secured already, and how much of the remaining cash cost would require debt?",
+                why_this_question=f"`funding_path_clear` is unresolved, and the current model still has about {gap_text} unaccounted for.",
+                expected_variable_updates=["savings", "loan_required"],
+                possible_conclusion_impact="Could move the case from do_not_recommend to conditional or confirm that debt risk is the blocker.",
+                priority=100,
+            )
+        )
+
+    if goal_map.get("salary_premium_positive", {}).get("status") in {"failed", "open"} or goal_map.get("payback_within_risk_window", {}).get("status") in {"failed", "open"}:
+        target_text = format_currency(break_even_salary, "/year") if isinstance(break_even_salary, (int, float)) else "the salary needed to clear your target risk window"
+        items.append(
+            question_item(
+                question_id="graduate_school.post_grad_salary",
+                question="What realistic post-grad salary range do graduates from your actual target programs achieve?",
+                why_this_question=f"Salary upside is the dominant lever here, and the current break-even point is about {target_text}.",
+                expected_variable_updates=["post_grad_expected_salary"],
+                possible_conclusion_impact="Could flip the recommendation if credible salary upside clears the risk-window threshold.",
+                priority=95,
+            )
+        )
+
+    if variable_record(ir, "risk_tolerance").get("value") is None or goal_map.get("payback_within_risk_window", {}).get("status") == "open":
+        items.append(
+            question_item(
+                question_id="graduate_school.risk_tolerance",
+                question="What is the longest payback window you would still consider acceptable for this degree?",
+                why_this_question="The payback goal cannot fully resolve until the risk window is explicit.",
+                expected_variable_updates=["risk_tolerance"],
+                possible_conclusion_impact="Could change the break-even salary target and make the same economics look acceptable or unacceptable.",
+                priority=80,
+            )
+        )
+
+    for variable_name in low_evidence_variables(ir, ["annual_tuition_living_cost", "direct_work_salary", "study_years", "post_grad_expected_salary"]):
+        if variable_name == "annual_tuition_living_cost":
+            items.append(
+                question_item(
+                    question_id="graduate_school.tuition",
+                    question="What is the best tuition-plus-living-cost estimate you can defend for the years you would be in school?",
+                    why_this_question="Total opportunity cost depends directly on this input, and the current estimate still looks weak.",
+                    expected_variable_updates=["annual_tuition_living_cost", "study_years"],
+                    possible_conclusion_impact="Could move both the funding gap and the payback period.",
+                    priority=70,
+                )
+            )
+        if variable_name == "direct_work_salary":
+            items.append(
+                question_item(
+                    question_id="graduate_school.direct_salary",
+                    question="What direct-work salary should the no-school path realistically use right now?",
+                    why_this_question="The baseline salary anchors both salary premium and opportunity cost.",
+                    expected_variable_updates=["direct_work_salary"],
+                    possible_conclusion_impact="Could tighten or widen the gap graduate school has to overcome.",
+                    priority=65,
+                )
+            )
+
+    return package_questions(items)
+
+
+def derived_value_dependencies(run: dict[str, Any]) -> dict[str, list[str]]:
+    del run
+    return {
+        "cash_cost": ["study_years", "annual_tuition_living_cost"],
+        "opportunity_cost": ["study_years", "direct_work_salary"],
+        "total_opportunity_cost": ["study_years", "annual_tuition_living_cost", "direct_work_salary"],
+        "annual_salary_premium": ["direct_work_salary", "post_grad_expected_salary"],
+        "payback_years_after_graduation": ["study_years", "annual_tuition_living_cost", "direct_work_salary", "post_grad_expected_salary"],
+        "funding_gap": ["study_years", "annual_tuition_living_cost", "savings"],
     }

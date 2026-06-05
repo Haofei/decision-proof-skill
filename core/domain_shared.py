@@ -9,6 +9,12 @@ from typing import Any, Iterable
 
 
 WEAK_SOURCES = {"guessed", "unknown"}
+DEFAULT_GOAL_SEVERITY = {
+    "closed": "soft",
+    "open": "warning",
+    "assumption": "warning",
+    "failed": "hard",
+}
 
 
 def load_module(name: str, path: Path):
@@ -20,14 +26,43 @@ def load_module(name: str, path: Path):
     return module
 
 
-def goal(goal_id: str, claim: str, status: str, reason: str, dependencies: list[str]) -> dict[str, Any]:
+def goal(
+    goal_id: str,
+    claim: str,
+    status: str,
+    reason: str,
+    dependencies: list[str],
+    *,
+    severity: str | None = None,
+) -> dict[str, Any]:
     return {
         "id": goal_id,
         "claim": claim,
         "status": status,
+        "severity": severity or DEFAULT_GOAL_SEVERITY.get(status, "warning"),
         "reason": reason,
         "dependencies": dependencies,
     }
+
+
+def has_failed_goal(
+    goals: Iterable[dict[str, Any]],
+    *,
+    severity: str | None = None,
+    ids: set[str] | None = None,
+    claims: set[str] | None = None,
+) -> bool:
+    for item in goals:
+        if item.get("status") != "failed":
+            continue
+        if severity is not None and item.get("severity") != severity:
+            continue
+        if ids is not None and item.get("id") not in ids:
+            continue
+        if claims is not None and item.get("claim") not in claims:
+            continue
+        return True
+    return False
 
 
 def raw_variable_value(ir: dict[str, Any], name: str) -> Any:

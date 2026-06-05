@@ -64,6 +64,7 @@ class GraduateSchoolTests(unittest.TestCase):
         goal_map = {goal["claim"]: goal for goal in result["proof_state"]["goals"]}
 
         self.assertEqual(goal_map["salary_premium_positive"]["status"], "failed")
+        self.assertEqual(goal_map["salary_premium_positive"]["severity"], "hard")
         self.assertEqual(goal_map["payback_within_risk_window"]["status"], "open")
         self.assertEqual(result["recommendation"]["status"], "do_not_recommend")
 

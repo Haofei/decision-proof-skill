@@ -34,8 +34,10 @@ class CarOptionsTests(unittest.TestCase):
 
         result = options_mod.evaluate_options(ir)
         new_car = next(option for option in result["options"] if option["id"] == "new_car")
+        affordability = next(goal for goal in new_car["proof_state"]["goals"] if goal["claim"] == "income_affordability")
 
         self.assertEqual(new_car["status"], "do_not_recommend")
+        self.assertEqual(affordability["severity"], "hard")
         self.assertIn("hard ceiling", new_car["main_risk"])
 
     def test_wait_option_keeps_unknowns_open(self):

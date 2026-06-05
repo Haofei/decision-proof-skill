@@ -27,9 +27,18 @@ def goal_lookup(proof_state: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {goal.get("claim"): goal for goal in proof_state.get("goals", []) if goal.get("claim")}
 
 
-def first_goal_with_status(proof_state: dict[str, Any], claims: set[str], status: str) -> dict[str, Any] | None:
+def first_goal_with_status(
+    proof_state: dict[str, Any],
+    claims: set[str],
+    status: str,
+    *,
+    severity: str | None = None,
+) -> dict[str, Any] | None:
     for item in proof_state.get("goals", []):
-        if item.get("claim") in claims and item.get("status") == status:
+        if item.get("claim") not in claims or item.get("status") != status:
+            continue
+        if severity is not None and item.get("severity") != severity:
+            continue
             return item
     return None
 

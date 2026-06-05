@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate a Decision IR file through the domain runtime."""
+"""Evaluate a Decision IR file through the package runtime."""
 
 from __future__ import annotations
 
@@ -13,13 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.domain_runtime import DomainRuntimeError, evaluate  # noqa: E402
-from core.domain_shared import error_payload  # noqa: E402
-
-
-def load_json(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+from decision_proof.report import DomainRuntimeError, error_payload, load_json  # noqa: E402
+from decision_proof.runtime import evaluate  # noqa: E402
 
 
 def main() -> int:

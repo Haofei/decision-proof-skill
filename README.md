@@ -64,6 +64,18 @@ evaluate_car_options.py:
 
 The option-based evaluator is still intentionally small, but it supports the Scenario Comparison shape: each option has its own cost, time, risk, evidence quality, proof goals, status, main risk, and ranking.
 
+The primary repository demo is now the option-comparison path rather than the binary buy/no-buy path:
+
+```text
+1. no_car
+2. used_gas_car
+3. used_ev
+4. new_car
+5. wait_6_months
+```
+
+That path shows the product shape better because the runtime can rank alternatives, surface hard constraints per option, name the main unresolved risk, and propose the next few conclusion-changing questions.
+
 The same pattern is now implemented as a second domain for a graduate-school decision:
 
 ```text
@@ -100,6 +112,17 @@ Use $decision-proof to help me decide whether I should buy a car.
 ```
 
 ## Scripts
+
+Preferred CLI surface:
+
+```bash
+python3 -m decision_proof.cli demo car-options
+python3 -m decision_proof.cli next-questions examples/car-decision.json
+python3 -m decision_proof.cli verify examples/car-decision.json
+python3 -m decision_proof.cli report examples/car-options-comparison.json --json-out /tmp/options_run.json --md-out /tmp/options_report.md
+```
+
+Direct script wrappers still work, but they now delegate into the domain packs and the shared runtime:
 
 Validate a Decision IR JSON file:
 
