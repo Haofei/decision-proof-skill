@@ -20,7 +20,7 @@ include = ["decision_proof*", "schemas*"]
 schemas = ["*.json"]
 "decision_proof.domains.car" = ["manifest.json", "questions.md"]
 "decision_proof.domains.graduate_school" = ["manifest.json", "questions.md"]
-"decision_proof.domains.rent_vs_buy" = ["manifest.json", "questions.md", "golden/*.json"]
+"decision_proof.domains.rent_vs_buy" = ["manifest.json", "questions.md", "example.json", "golden/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

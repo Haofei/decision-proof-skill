@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 from decision_proof.core.domain_runtime import validation_errors
+from decision_proof.core.io import load_json
 from decision_proof.core.schema_validation import validate_instance
-
-
-def load_json(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
 
 
 def validate(ir: dict) -> list[str]:

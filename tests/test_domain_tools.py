@@ -31,6 +31,20 @@ class DomainToolsTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertTrue(any("manifest.json" in error for error in result["errors"]))
 
+    def test_strict_gate_hard_fails_on_too_few_golden(self):
+        car = ROOT / "decision_proof" / "domains" / "car"
+
+        # car has no golden cases: warning in dev mode, hard error under --strict.
+        self.assertTrue(validate_domain(car)["ok"])
+        strict = validate_domain(car, strict=True)
+        self.assertFalse(strict["ok"])
+        self.assertTrue(any("golden cases" in error for error in strict["errors"]))
+
+    def test_rent_pack_passes_strict_gate(self):
+        result = validate_domain(RENT, strict=True)
+
+        self.assertTrue(result["ok"], result.get("errors"))
+
 
 if __name__ == "__main__":
     unittest.main()

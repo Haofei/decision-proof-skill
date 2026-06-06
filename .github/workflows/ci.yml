@@ -42,9 +42,27 @@ jobs:
         run: |
           python -m decision_proof.cli demo rent-vs-buy
           python -m decision_proof.cli verify examples/rent-vs-buy-decision.json
-      - name: Domain pack validate and golden tests
+      - name: Domain pack validate (strict) and golden tests
         run: |
-          python -m decision_proof.cli domain-validate decision_proof/domains/rent_vs_buy
+          python -m decision_proof.cli domain-validate decision_proof/domains/rent_vs_buy --strict
           python -m decision_proof.cli domain-test decision_proof/domains/rent_vs_buy
       - name: Evaluate multi-option car scenario
         run: python -m decision_proof.cli evaluate examples/car-options-comparison.json
+
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel and install
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+          python -m pip install dist/*.whl
+      - name: Console command works after install (no repo context)
+        run: |
+          cd /tmp
+          decision-proof demo rent-vs-buy
+          decision-proof domain-test "$(python -c 'import decision_proof.domains.rent_vs_buy as m, os; print(os.path.dirname(m.__file__))')"

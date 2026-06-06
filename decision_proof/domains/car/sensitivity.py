@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 from decision_proof.core.domain_shared import round_or_none
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
 
 
 def var(ir: dict[str, Any], name: str, default: float = 0.0) -> float | None:

@@ -69,6 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
         "domain-validate", help="Validate a domain pack's manifest"
     )
     domain_validate_parser.add_argument("domain_dir", type=Path)
+    domain_validate_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Release gate: treat contract warnings (e.g. too few golden cases) as errors",
+    )
 
     domain_test_parser = subparsers.add_parser(
         "domain-test", help="Run a domain pack's golden cases"
@@ -155,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "domain-validate":
-        result = validate_domain(args.domain_dir)
+        result = validate_domain(args.domain_dir, strict=args.strict)
         print(json.dumps(result, indent=2))
         return 0 if result["ok"] else 1
 

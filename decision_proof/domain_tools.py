@@ -24,8 +24,13 @@ def _golden_paths(domain_dir: Path) -> list[Path]:
     return sorted(golden_dir.glob("*.json")) if golden_dir.exists() else []
 
 
-def validate_domain(domain_dir: Path) -> dict[str, Any]:
-    """Schema-validate the manifest and check structural pack requirements."""
+def validate_domain(domain_dir: Path, *, strict: bool = False) -> dict[str, Any]:
+    """Schema-validate the manifest and check structural pack requirements.
+
+    In dev mode (default) the contract quality bar is reported as warnings so a
+    pack can be built up to it. In ``strict`` mode (release / registry gate) the
+    warnings become hard errors.
+    """
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -43,15 +48,20 @@ def validate_domain(domain_dir: Path) -> dict[str, Any]:
     if not (domain_dir / entry_point).exists():
         errors.append(f"entry_point '{entry_point}' not found")
 
-    # Contract quality bar (reported as warnings so packs can be built up to it).
+    # Contract quality bar.
     golden = _golden_paths(domain_dir)
     if len(golden) < MIN_GOLDEN_CASES:
         warnings.append(
             f"contract requires >= {MIN_GOLDEN_CASES} golden cases; found {len(golden)}"
         )
 
+    if strict:
+        errors.extend(warnings)
+        warnings = []
+
     return {
         "ok": not errors,
+        "strict": strict,
         "errors": errors,
         "warnings": warnings,
         "golden_cases": len(golden),

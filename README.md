@@ -1,8 +1,10 @@
-# Decision Proof Skill
+# Decision Proof
 
-Decision Proof is a Codex skill for turning messy real-world decisions into auditable, conditional decision models.
+**Decision Proof helps you decide whether to buy or rent a home by showing the buy/rent break-even horizon, the safety constraints, and the exact assumptions that would flip the recommendation.**
 
-Most people reason through high-stakes choices by feel: buy the car, go to graduate school, take the job, move cities, wait, invest, quit. The feeling is often meaningful, but it is hard to inspect. This skill helps translate that feeling into variables, thresholds, constraints, proof goals, and conclusion-flipping conditions.
+Rent-vs-buy is the flagship; the same engine also handles a graduate-school decision and a small car-buying demo. It is an auditable decision tool, not an oracle: it shows that the recommendation follows from the stated assumptions — **it does not prove the assumptions are true.**
+
+Most people reason through high-stakes choices by feel: buy or rent, go to graduate school, take the job, move cities, wait, invest, quit. The feeling is often meaningful, but it is hard to inspect. Decision Proof translates that feeling into variables, thresholds, constraints, proof goals, and conclusion-flipping conditions — and checks that the conclusion is consistent with them.
 
 The core question changes from:
 

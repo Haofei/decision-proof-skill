@@ -8,16 +8,15 @@ boilerplate so each domain only declares its checks.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
+
+from decision_proof.core.io import load_json
+
+# Domains import ``load_ir`` from here; it is the shared JSON loader.
+load_ir = load_json
 
 # (id, passed, message-on-failure)
 Check = tuple[str, bool, str]
-
-
-def load_ir(ir_path: str | Path) -> dict[str, Any]:
-    return json.loads(Path(ir_path).read_text(encoding="utf-8"))
 
 
 def hard_failed_any(goals: list[dict[str, Any]]) -> bool:

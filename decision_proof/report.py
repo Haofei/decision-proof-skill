@@ -20,11 +20,7 @@ from decision_proof.core.domain_runtime import (
 )
 from decision_proof.core.domain_shared import error_payload
 from decision_proof.core.global_verifier import verify_run
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+from decision_proof.core.io import load_json
 
 
 def canonical_hash(data: dict[str, Any]) -> str:

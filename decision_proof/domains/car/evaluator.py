@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 from decision_proof.core.domain_shared import (
@@ -30,11 +28,6 @@ DEFAULTS = {
     "optionality_value_monthly": 0,
     "decision_margin": 0,
 }
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
 
 
 def value(ir: dict[str, Any], name: str, default: float | None = None) -> float | None:

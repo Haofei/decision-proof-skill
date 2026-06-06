@@ -1,4 +1,4 @@
-"""Repository-first demo entrypoints for Decision Proof."""
+"""Demo entrypoints for Decision Proof."""
 
 from __future__ import annotations
 
@@ -9,6 +9,11 @@ from decision_proof.report import load_json, make_run, render_markdown
 from decision_proof.runtime import next_questions
 
 ROOT = Path(__file__).resolve().parents[1]
+# The flagship demo reads a bare IR bundled inside the pack so it works after
+# `pip install` (where the repo-level examples/ directory is not present).
+RENT_VS_BUY_EXAMPLE = (
+    Path(__file__).resolve().parent / "domains" / "rent_vs_buy" / "example.json"
+)
 
 
 def car_options_demo() -> dict[str, Any]:
@@ -37,7 +42,7 @@ def car_options_demo() -> dict[str, Any]:
 
 
 def rent_vs_buy_demo() -> dict[str, Any]:
-    ir_path = ROOT / "examples" / "rent-vs-buy-decision.json"
+    ir_path = RENT_VS_BUY_EXAMPLE
     ir = load_json(ir_path)
     run = make_run(ir, ir_path, "demo_rent_vs_buy")
     return {

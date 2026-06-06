@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+from decision_proof.core.io import load_json
 from decision_proof.domains.car import options as options_mod
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CarOptionsTests(unittest.TestCase):
     def test_ranks_multiple_options(self):
-        ir = options_mod.load_json(ROOT / "examples" / "car-options-comparison.json")
+        ir = load_json(ROOT / "examples" / "car-options-comparison.json")
 
         result = options_mod.evaluate_options(ir)
 
@@ -19,7 +20,7 @@ class CarOptionsTests(unittest.TestCase):
         self.assertEqual(result["ranking"][:3], ["used_gas_car", "used_ev", "no_car"])
 
     def test_new_car_hard_ceiling_fails(self):
-        ir = options_mod.load_json(ROOT / "examples" / "car-options-comparison.json")
+        ir = load_json(ROOT / "examples" / "car-options-comparison.json")
 
         result = options_mod.evaluate_options(ir)
         new_car = next(
@@ -36,7 +37,7 @@ class CarOptionsTests(unittest.TestCase):
         self.assertIn("hard ceiling", new_car["main_risk"])
 
     def test_wait_option_keeps_unknowns_open(self):
-        ir = options_mod.load_json(ROOT / "examples" / "car-options-comparison.json")
+        ir = load_json(ROOT / "examples" / "car-options-comparison.json")
 
         result = options_mod.evaluate_options(ir)
         wait = next(
