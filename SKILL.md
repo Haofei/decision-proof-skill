@@ -11,10 +11,11 @@ Use this skill to turn an ambiguous real-world decision into a conditional proof
 
 Supported domains now route through `decision_proof/core/domain_runtime.py`, which resolves `decision.type` using `decision_proof/domains/*/manifest.json`.
 
-- `personal_finance_mobility` -> `decision_proof/domains/car/`
+- `personal_finance_mobility` -> `decision_proof/domains/car/` (demo domain)
 - `graduate_school` / `education_career` -> `decision_proof/domains/graduate_school/`
+- `rent_vs_buy` / `housing` -> `decision_proof/domains/rent_vs_buy/`
 
-For car questions, read `references/car-decision-model.md`. For graduate-school questions, use the break-even framing from `examples/graduate-school-notes.md` and `examples/graduate-school-decision.json`.
+For car questions, read `references/car-decision-model.md`. For graduate-school questions, use the break-even framing from `examples/graduate-school-notes.md` and `examples/graduate-school-decision.json`. For rent-vs-buy questions, use `examples/rent-vs-buy-decision.json` and `decision_proof/domains/rent_vs_buy/questions.md`; the core output is the buy/rent break-even horizon checked against cash-safety and affordability constraints.
 
 ## Core Rule
 

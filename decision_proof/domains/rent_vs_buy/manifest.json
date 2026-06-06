@@ -1,0 +1,202 @@
+{
+  "key": "rent_vs_buy",
+  "decision_types": [
+    "rent_vs_buy",
+    "housing"
+  ],
+  "summary": "Rent vs buy a home: break-even horizon against cash-safety and affordability constraints.",
+  "required_variables": [
+    "home_price",
+    "mortgage_rate_annual",
+    "monthly_rent",
+    "monthly_after_tax_income",
+    "emergency_fund_months_after"
+  ],
+  "outputs": [
+    "derived_values",
+    "proof_state",
+    "recommendation",
+    "sensitivity",
+    "guidance"
+  ],
+  "verifier": "none",
+  "entry_point": "domain.py",
+  "questions_path": "questions.md",
+  "guidance_config": {
+    "mode": "goal_cases",
+    "cases": [
+      {
+        "when": {
+          "goal_status": {
+            "claim": "cash_safety",
+            "statuses": ["failed"]
+          }
+        },
+        "summary": "Do not treat this as a buy/rent preference yet; a hard cash-safety constraint is failing.",
+        "focus_from_goal_reason": "cash_safety",
+        "focus": "Your post-purchase emergency fund drops below the safe floor.",
+        "deprioritize": "Do not optimize appreciation or rent assumptions until the down payment no longer wipes out your safety buffer.",
+        "next_step": "Rebuild the post-purchase emergency fund, lower the price, or shrink the down payment before revisiting the buy case."
+      },
+      {
+        "when": {
+          "goal_status": {
+            "claim": "affordability",
+            "statuses": ["failed"]
+          }
+        },
+        "summary": "Do not treat this as a buy/rent preference yet; the monthly housing cost is above a safe share of income.",
+        "focus_from_goal_reason": "affordability",
+        "focus": "Monthly housing cost is too large a share of after-tax income.",
+        "deprioritize": "Do not fine-tune appreciation or break-even assumptions while affordability itself is failing.",
+        "next_step": "Get the all-in monthly housing cost down to a safe income share before comparing buy vs rent.",
+        "next_step_when_numeric": {
+          "template": "Bring the home price to about {max_home_price_within_budget} or below (at this rate and down payment) to clear the affordability ceiling, or change the income assumptions.",
+          "placeholders": {
+            "max_home_price_within_budget": {
+              "source": "flip",
+              "key": "max_home_price_within_budget",
+              "format": "currency"
+            }
+          }
+        }
+      },
+      {
+        "when": {
+          "goal_status": {
+            "claim": "stay_long_enough",
+            "statuses": ["failed"]
+          }
+        },
+        "summary": "Lean toward renting. The hard constraints are fine, but you likely will not stay long enough for buying to beat renting.",
+        "focus": "The decision turns on how long you will stay, not on small cost tweaks.",
+        "focus_when_numeric": {
+          "template": "You expect to stay about {expected_years_in_home} years, but buying only breaks even after about {break_even_years} years on these assumptions.",
+          "placeholders": {
+            "expected_years_in_home": {
+              "source": "current",
+              "key": "expected_years_in_home",
+              "format": "float1"
+            },
+            "break_even_years": {
+              "source": "current",
+              "key": "break_even_years",
+              "format": "float1"
+            }
+          }
+        },
+        "deprioritize": "Emergency-fund safety and affordability already pass; do not keep re-estimating them. Small changes to tax or maintenance will not close a multi-year horizon gap.",
+        "next_step": "Pressure-test how confident you are in your length-of-stay; if it could realistically reach the break-even horizon, buying becomes reasonable."
+      },
+      {
+        "when": {
+          "goal_status": {
+            "claim": "stay_long_enough",
+            "statuses": ["open"]
+          }
+        },
+        "summary": "Do not force a conclusion yet. The model is mostly waiting on one decision-defining number: how long you will stay.",
+        "focus": "The buy/rent answer hinges on your expected length of stay versus the break-even horizon.",
+        "focus_when_numeric": {
+          "template": "Buying breaks even after about {break_even_years} years here; the missing piece is how long you actually expect to stay.",
+          "placeholders": {
+            "break_even_years": {
+              "source": "current",
+              "key": "break_even_years",
+              "format": "float1"
+            }
+          }
+        },
+        "deprioritize": "Do not spread effort across every rate assumption; the length-of-stay estimate dominates.",
+        "next_step": "Estimate, even as a range, how many years you realistically expect to keep this home."
+      }
+    ],
+    "default": {
+      "summary": "The current conclusion is conditional; the next useful step is to confirm length of stay and the few numbers that move the break-even horizon.",
+      "focus": "Length of stay versus the break-even horizon is the dominant lever in this decision.",
+      "deprioritize": "Do not spread effort evenly across every estimate; start with length of stay, price, rate and rent.",
+      "next_step": "Confirm your expected length of stay and the comparable rent before tuning smaller assumptions."
+    }
+  },
+  "next_questions_config": {
+    "mode": "rules",
+    "rules": [
+      {
+        "question_id": "rent_vs_buy.length_of_stay",
+        "when": {
+          "any": [
+            {"variable_unknown": "expected_years_in_home"},
+            {"goal_status": {"claim": "stay_long_enough", "statuses": ["open", "failed"]}}
+          ]
+        },
+        "question": "How many years do you realistically expect to keep and live in this home? A range is fine.",
+        "why_template": "Buying only beats renting once you pass the break-even horizon of about {break_even_text}, so length of stay is the decision-defining input.",
+        "why_placeholders": {
+          "break_even_text": {
+            "source": "current",
+            "key": "break_even_years",
+            "format": "float1",
+            "suffix": " years",
+            "fallback": "the buy/rent break-even point"
+          }
+        },
+        "expected_variable_updates": ["expected_years_in_home"],
+        "possible_conclusion_impact": "Could move the conclusion between lean_no (rent) and lean_yes/recommend (buy).",
+        "priority": 100
+      },
+      {
+        "question_id": "rent_vs_buy.mortgage_rate",
+        "when": {"low_evidence_variable": "mortgage_rate_annual"},
+        "question": "What mortgage rate can you actually lock right now for this purchase?",
+        "why_this_question": "The rate drives the monthly payment, affordability, and the break-even horizon all at once.",
+        "expected_variable_updates": ["mortgage_rate_annual"],
+        "possible_conclusion_impact": "Could shift affordability between pass and fail and move the break-even horizon by years.",
+        "priority": 85
+      },
+      {
+        "question_id": "rent_vs_buy.comparable_rent",
+        "when": {"low_evidence_variable": "monthly_rent"},
+        "question": "What does it actually cost to rent an equivalent home in the same area today?",
+        "why_this_question": "The break-even horizon is a direct comparison against this rent; a wrong rent moves the whole conclusion.",
+        "expected_variable_updates": ["monthly_rent"],
+        "possible_conclusion_impact": "Could flip the break-even comparison if the true comparable rent is materially different.",
+        "priority": 80
+      },
+      {
+        "question_id": "rent_vs_buy.affordability_income",
+        "when": {
+          "any": [
+            {"variable_unknown": "monthly_after_tax_income"},
+            {"goal_status": {"claim": "affordability", "statuses": ["open", "failed"]}}
+          ]
+        },
+        "question": "What after-tax monthly income should this decision use right now?",
+        "why_this_question": "Affordability is judged as a share of after-tax income, and it is currently unresolved or failing.",
+        "expected_variable_updates": ["monthly_after_tax_income"],
+        "possible_conclusion_impact": "Could move affordability from open or fail to pass, or confirm a hard affordability block.",
+        "priority": 90
+      },
+      {
+        "question_id": "rent_vs_buy.emergency_fund",
+        "when": {
+          "any": [
+            {"variable_unknown": "emergency_fund_months_after"},
+            {"goal_status": {"claim": "cash_safety", "statuses": ["open", "failed"]}}
+          ]
+        },
+        "question": "After the down payment and closing costs, how many months of expenses would your emergency fund still cover?",
+        "why_this_question": "Cash safety is a hard constraint, and a large down payment can quietly drop the buffer below a safe floor.",
+        "expected_variable_updates": ["emergency_fund_months_after"],
+        "possible_conclusion_impact": "Could turn a hard cash-safety failure into a pass or confirm that buying is currently unsafe.",
+        "priority": 95
+      }
+    ]
+  },
+  "derived_value_dependencies": {
+    "down_payment_cash_needed": ["home_price"],
+    "monthly_mortgage_payment": ["home_price", "mortgage_rate_annual"],
+    "monthly_ownership_cost": ["home_price", "mortgage_rate_annual"],
+    "housing_cost_income_ratio": ["home_price", "mortgage_rate_annual", "monthly_after_tax_income"],
+    "break_even_years": ["home_price", "mortgage_rate_annual", "monthly_rent"]
+  }
+}

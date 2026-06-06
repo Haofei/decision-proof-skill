@@ -82,6 +82,14 @@ The same pattern is now implemented as a second domain for a graduate-school dec
 Should I go to graduate school or work directly?
 ```
 
+A third domain models rent vs buy, the canonical high-stakes housing decision:
+
+```text
+Should I buy this home or keep renting?
+```
+
+It computes the buy/rent break-even horizon (how many years you must stay for buying to beat renting) and checks it against two hard constraints — post-purchase cash safety and housing affordability — before the horizon comparison decides the recommendation. The car domain is kept only as a small feature demo.
+
 That example shows why the approach is useful. Many people compare only:
 
 ```text
@@ -176,6 +184,10 @@ decision_proof/domains/
     questions.md
     domain.py
   graduate_school/
+    manifest.json
+    questions.md
+    domain.py
+  rent_vs_buy/
     manifest.json
     questions.md
     domain.py

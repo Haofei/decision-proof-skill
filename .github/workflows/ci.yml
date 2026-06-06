@@ -24,10 +24,13 @@ jobs:
         run: python -m decision_proof.cli validate examples/car-decision.json
       - name: Validate graduate-school IR
         run: python -m decision_proof.cli validate examples/graduate-school-decision.json
+      - name: Validate rent-vs-buy IR
+        run: python -m decision_proof.cli validate examples/rent-vs-buy-decision.json
       - name: Evaluate generic runtime entrypoint
         run: |
           python -m decision_proof.cli evaluate examples/car-decision.json
           python -m decision_proof.cli evaluate examples/graduate-school-decision.json
+          python -m decision_proof.cli evaluate examples/rent-vs-buy-decision.json
       - name: Generate report and diff smoke test
         run: |
           python -m decision_proof.cli report examples/car-decision.json --run-id run_unknown --json-out /tmp/run_unknown.json --md-out /tmp/run_unknown.md

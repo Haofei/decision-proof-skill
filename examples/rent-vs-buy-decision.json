@@ -1,0 +1,25 @@
+{
+  "decision": {
+    "id": "rent_vs_buy_example",
+    "question": "Should I buy this home or keep renting?",
+    "type": "rent_vs_buy",
+    "stakes": "high",
+    "reversibility": "low"
+  },
+  "options": [
+    {"id": "buy", "label": "Buy the home"},
+    {"id": "rent", "label": "Keep renting"}
+  ],
+  "variables": {
+    "home_price": {"value": 600000, "unit": "USD", "confidence": 0.8, "source": "quoted"},
+    "mortgage_rate_annual": {"value": 0.065, "unit": "rate/year", "confidence": 0.8, "source": "quoted"},
+    "monthly_rent": {"value": 2800, "unit": "USD/month", "confidence": 0.7, "source": "estimated"},
+    "expected_years_in_home": {"value": 5, "unit": "years", "confidence": 0.5, "source": "estimated"},
+    "monthly_after_tax_income": {"value": 15000, "unit": "USD/month", "confidence": 0.8, "source": "measured"},
+    "emergency_fund_months_after": {"value": 7, "unit": "months", "confidence": 0.8, "source": "measured"},
+    "down_payment_pct": {"value": 0.20, "unit": "fraction", "confidence": 0.9, "source": "stated"},
+    "home_appreciation_rate_annual": {"value": 0.03, "unit": "rate/year", "confidence": 0.4, "source": "assumed"},
+    "rent_growth_rate_annual": {"value": 0.03, "unit": "rate/year", "confidence": 0.4, "source": "assumed"},
+    "investment_return_rate_annual": {"value": 0.05, "unit": "rate/year", "confidence": 0.4, "source": "assumed"}
+  }
+}
