@@ -10,6 +10,7 @@ from typing import Any
 
 from decision_proof.core.domain_runtime import (
     DomainRuntimeError,
+    derived_value_assumptions,
     derived_value_dependencies,
     domain_key,
     evaluate,
@@ -89,6 +90,7 @@ def make_run(
     if "assumptions_used" in evaluation:
         run["assumptions_used"] = evaluation["assumptions_used"]
     run["derived_value_dependencies"] = derived_value_dependencies(ir, run)
+    run["derived_value_assumptions"] = derived_value_assumptions(ir)
     run["guidance"] = guidance(ir, run)
     run["global_verifier_result"] = verify_run(run, expected_hash=input_hash)
     return run
@@ -112,9 +114,16 @@ def goal_mark(status: str) -> str:
 
 
 def verifier_badge(verifier: dict[str, Any]) -> str:
-    if verifier.get("proof_checked"):
-        return f"PASS: Rule closure checked ({verifier.get('proved_predicate')})"
-    return f"OPEN: Not proof-checked ({verifier.get('error', 'verifier incomplete')})"
+    if not verifier.get("proof_checked"):
+        return (
+            f"OPEN: Not proof-checked ({verifier.get('error', 'verifier incomplete')})"
+        )
+    predicate = verifier.get("proved_predicate")
+    # A deterministic checker reports passed_checks; a Lean backend does not.
+    # Distinguish them so a formal proof is not conflated with invariant checks.
+    if verifier.get("passed_checks") is not None:
+        return f"PASS: Deterministic domain checks passed ({predicate})"
+    return f"PASS: Lean rule closure checked ({predicate})"
 
 
 def render_markdown(run: dict[str, Any]) -> str:

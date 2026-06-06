@@ -66,6 +66,7 @@ Use only these states:
 - `references/lean-backend.md`: Boundary and pipeline for generated Lean proof certificates.
 - `references/decision-workspace.md`: Productized workspace/report/diff model for Decision Proof.
 - `references/product-architecture.md`: Domain pack, run artifact, API, and data-model direction for productization.
+- `references/domain-pack-contract.md`: The LLM author contract — how an authoring agent turns an expert's methodology into a domain pack, and the quality bar (golden cases, evidence policy, escalation boundary, disclosure, verifier coverage) a pack must clear.
 - `python3 -m decision_proof.cli validate <ir.json>`: Validate a Decision IR JSON file.
 - `python3 -m decision_proof.cli evaluate <ir.json>`: Evaluate any supported Decision IR JSON file through the runtime.
 - `python3 -m decision_proof.cli report <ir.json> --json-out <run.json> --md-out <report.md>`: Generate a Markdown report and run artifact from a Decision IR.

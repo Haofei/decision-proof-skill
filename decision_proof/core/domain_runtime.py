@@ -129,14 +129,7 @@ def next_questions(
     return default_next_questions(ir, active_run)
 
 
-def derived_value_dependencies(
-    ir: dict[str, Any], run: dict[str, Any]
-) -> dict[str, list[str]]:
-    spec, module = load_domain(ir)
-    if hasattr(module, "derived_value_dependencies"):
-        return module.derived_value_dependencies(run)
-    manifest = domain_manifest(spec.model_path)
-    mapping = manifest.get("derived_value_dependencies", {})
+def _manifest_string_lists(mapping: Any) -> dict[str, list[str]]:
     if not isinstance(mapping, dict):
         return {}
     return {
@@ -144,3 +137,25 @@ def derived_value_dependencies(
         for key, value in mapping.items()
         if isinstance(key, str) and isinstance(value, list)
     }
+
+
+def derived_value_dependencies(
+    ir: dict[str, Any], run: dict[str, Any]
+) -> dict[str, list[str]]:
+    spec, module = load_domain(ir)
+    if hasattr(module, "derived_value_dependencies"):
+        return module.derived_value_dependencies(run)
+    manifest = domain_manifest(spec.model_path)
+    return _manifest_string_lists(manifest.get("derived_value_dependencies", {}))
+
+
+def derived_value_assumptions(ir: dict[str, Any]) -> dict[str, list[str]]:
+    """Defaulted priors each numeric output depends on, declared in the manifest.
+
+    Unlike dependencies (required, enforced present), these are disclosed-only:
+    a prior is satisfied by being explicit in the IR or surfaced in
+    ``assumptions_used``.
+    """
+    spec = resolve_domain_spec(ir)
+    manifest = domain_manifest(spec.model_path)
+    return _manifest_string_lists(manifest.get("derived_value_assumptions", {}))

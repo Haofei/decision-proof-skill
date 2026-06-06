@@ -21,6 +21,188 @@
   "verifier": "python",
   "entry_point": "domain.py",
   "questions_path": "questions.md",
+  "priors": {
+    "target_payback_years_low_risk": 3.0,
+    "target_payback_years_medium_risk": 5.0,
+    "target_payback_years_high_risk": 7.0
+  },
+  "model": {
+    "intermediates": {
+      "cash_cost": {
+        "primitive": "product",
+        "operands": ["study_years", "annual_tuition_living_cost"]
+      },
+      "opportunity_cost": {
+        "primitive": "product",
+        "operands": ["study_years", "direct_work_salary"]
+      },
+      "total_opportunity_cost": {
+        "primitive": "sum",
+        "operands": ["cash_cost", "opportunity_cost"]
+      },
+      "annual_salary_premium": {
+        "primitive": "difference",
+        "operands": ["post_grad_expected_salary", "direct_work_salary"]
+      },
+      "payback_years": {
+        "primitive": "ratio",
+        "numerator": "total_opportunity_cost",
+        "denominator": "annual_salary_premium",
+        "require_positive_denominator": true
+      },
+      "funding_gap": {
+        "primitive": "positive_difference",
+        "operands": ["cash_cost", "savings"]
+      },
+      "target_payback_years": {
+        "primitive": "lookup",
+        "key": "risk_tolerance",
+        "table": {
+          "low": "target_payback_years_low_risk",
+          "medium": "target_payback_years_medium_risk",
+          "high": "target_payback_years_high_risk"
+        }
+      },
+      "break_even_salary_premium": {
+        "primitive": "ratio",
+        "numerator": "total_opportunity_cost",
+        "denominator": "target_payback_years"
+      },
+      "break_even_post_grad_salary": {
+        "primitive": "sum",
+        "operands": ["direct_work_salary", "break_even_salary_premium"]
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "G1",
+      "claim": "salary_premium_positive",
+      "kind": "threshold",
+      "value": "annual_salary_premium",
+      "op": "gt",
+      "limit": 0,
+      "severity_on_fail": "hard",
+      "dependencies": ["direct_work_salary", "post_grad_expected_salary"],
+      "open_reason": "salary premium cannot be computed without current and post-grad salary",
+      "reason_closed": "annual salary premium is ${value:.0f}",
+      "reason_failed": "annual salary premium is ${value:.0f}"
+    },
+    {
+      "id": "G2",
+      "claim": "payback_within_risk_window",
+      "kind": "threshold",
+      "value": "payback_years",
+      "op": "lte",
+      "limit": "target_payback_years",
+      "severity_on_fail": "warning",
+      "decisive": true,
+      "dependencies": [
+        "study_years",
+        "annual_tuition_living_cost",
+        "direct_work_salary",
+        "post_grad_expected_salary",
+        "risk_tolerance"
+      ],
+      "open_reason": "payback window cannot be checked without payback years and risk tolerance",
+      "reason_closed": "payback is {value:.1f} years, inside the {limit:.1f}-year risk window",
+      "reason_failed": "payback is {value:.1f} years, above the {limit:.1f}-year risk window"
+    },
+    {
+      "id": "G3",
+      "claim": "funding_path_clear",
+      "kind": "cases",
+      "cases": [
+        {
+          "when": {"value_unknown": "funding_gap"},
+          "status": "open",
+          "severity": "warning",
+          "reason": "funding gap cannot be computed without tuition/living cost and savings",
+          "dependencies": ["annual_tuition_living_cost", "study_years", "savings", "loan_required"]
+        },
+        {
+          "when": {"value_lte": {"name": "funding_gap", "limit": 0}},
+          "status": "closed",
+          "severity": "soft",
+          "reason": "available savings cover the direct cash cost",
+          "dependencies": ["annual_tuition_living_cost", "study_years", "savings"]
+        },
+        {
+          "when": {
+            "all": [
+              {"bool_true": "loan_required"},
+              {"text_equals": {"name": "risk_tolerance", "value": "low"}}
+            ]
+          },
+          "status": "failed",
+          "severity": "hard",
+          "reason": "requires about ${funding_gap:.0f} of debt while risk tolerance is low",
+          "dependencies": ["annual_tuition_living_cost", "study_years", "savings", "loan_required", "risk_tolerance"]
+        },
+        {
+          "when": {"bool_true": "loan_required"},
+          "status": "assumption",
+          "severity": "warning",
+          "reason": "requires about ${funding_gap:.0f} of debt financing",
+          "dependencies": ["annual_tuition_living_cost", "study_years", "savings", "loan_required"]
+        },
+        {
+          "when": {},
+          "status": "open",
+          "severity": "warning",
+          "reason": "about ${funding_gap:.0f} of funding gap remains unexplained",
+          "dependencies": ["annual_tuition_living_cost", "study_years", "savings", "loan_required"]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "target_claim": "graduate_school_better_than_direct_work",
+    "evidence_variables": [
+      "study_years",
+      "annual_tuition_living_cost",
+      "direct_work_salary",
+      "post_grad_expected_salary",
+      "savings"
+    ],
+    "open_blocks_conclusion": ["salary_premium_positive", "payback_within_risk_window"],
+    "key_dependencies": [
+      "study_years",
+      "annual_tuition_living_cost",
+      "direct_work_salary",
+      "post_grad_expected_salary",
+      "risk_tolerance"
+    ]
+  },
+  "derived_values": {
+    "cash_cost": "cash_cost",
+    "opportunity_cost": "opportunity_cost",
+    "total_opportunity_cost": "total_opportunity_cost",
+    "annual_salary_premium": "annual_salary_premium",
+    "payback_years_after_graduation": "payback_years",
+    "funding_gap": "funding_gap"
+  },
+  "sensitivity": {
+    "current": {
+      "target_payback_years": "target_payback_years",
+      "current_payback_years": "payback_years",
+      "current_salary_premium": "annual_salary_premium",
+      "funding_gap": "funding_gap"
+    },
+    "flip_conditions": {
+      "break_even_salary_premium_for_risk_window": "break_even_salary_premium",
+      "break_even_post_grad_salary_for_risk_window": "break_even_post_grad_salary",
+      "required_savings_without_loan": "cash_cost"
+    },
+    "unknown_variables": [
+      "study_years",
+      "annual_tuition_living_cost",
+      "direct_work_salary",
+      "post_grad_expected_salary",
+      "savings",
+      "risk_tolerance"
+    ]
+  },
   "guidance_config": {
     "mode": "goal_cases",
     "cases": [

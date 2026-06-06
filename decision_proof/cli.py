@@ -11,6 +11,7 @@ from decision_proof.demo import car_options_demo, rent_vs_buy_demo
 from decision_proof.diff import diff_runs
 from decision_proof.diff import load_json as load_diff_json
 from decision_proof.diff import render_markdown as render_diff_markdown
+from decision_proof.domain_tools import test_domain, validate_domain
 from decision_proof.report import load_json as load_report_json
 from decision_proof.report import make_run, render_markdown
 from decision_proof.runtime import DomainRuntimeError, evaluate, next_questions
@@ -63,6 +64,16 @@ def build_parser() -> argparse.ArgumentParser:
     demo_parser = subparsers.add_parser("demo", help="Run a repository demo flow")
     demo_parser.add_argument("name", choices=["car-options", "rent-vs-buy"])
     demo_parser.add_argument("--md-out", type=Path)
+
+    domain_validate_parser = subparsers.add_parser(
+        "domain-validate", help="Validate a domain pack's manifest"
+    )
+    domain_validate_parser.add_argument("domain_dir", type=Path)
+
+    domain_test_parser = subparsers.add_parser(
+        "domain-test", help="Run a domain pack's golden cases"
+    )
+    domain_test_parser.add_argument("domain_dir", type=Path)
 
     return parser
 
@@ -142,6 +153,16 @@ def main(argv: list[str] | None = None) -> int:
             args.md_out.write_text(payload["markdown_report"] + "\n", encoding="utf-8")
         print(json.dumps(summary, indent=2))
         return 0
+
+    if args.command == "domain-validate":
+        result = validate_domain(args.domain_dir)
+        print(json.dumps(result, indent=2))
+        return 0 if result["ok"] else 1
+
+    if args.command == "domain-test":
+        result = test_domain(args.domain_dir)
+        print(json.dumps(result, indent=2))
+        return 0 if result["ok"] else 1
 
     before = load_diff_json(args.from_run_json)
     after = load_diff_json(args.to_run_json)

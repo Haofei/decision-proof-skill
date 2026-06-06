@@ -57,6 +57,25 @@ class GlobalVerifierTests(unittest.TestCase):
             )
         )
 
+    def test_undisclosed_prior_fails_disclosure_invariant(self):
+        ir_path = ROOT / "examples" / "rent-vs-buy-decision.json"
+        run = make_run(load_json(ir_path), ir_path, "global_disclose")
+        tampered = copy.deepcopy(run)
+        # selling_cost_pct feeds break_even_years and was defaulted; hide it.
+        tampered["assumptions_used"].pop("selling_cost_pct", None)
+
+        result = global_verifier_mod.verify_run(
+            tampered, expected_hash=tampered["input_ir_hash"]
+        )
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(
+            any(
+                item["id"] == "numeric_outputs_disclose_assumptions"
+                for item in result["failed_invariants"]
+            )
+        )
+
     def test_option_ranking_cannot_put_bad_option_first(self):
         ir_path = ROOT / "examples" / "car-options-comparison.json"
         run = make_run(load_json(ir_path), ir_path, "global_option_rank")

@@ -87,8 +87,82 @@ class RentVsBuyTests(unittest.TestCase):
 
         self.assertTrue(result["proof_checked"])
         self.assertEqual(result["failed_checks"], [])
+        self.assertIn("numeric_break_even_discloses_priors", result["passed_checks"])
+
+    def test_explicit_priors_do_not_false_fail_disclosure(self):
+        # All modeling priors provided explicitly -> assumptions_used is empty,
+        # but the disclosure check must still pass (P1: no false fail).
+        from decision_proof.domains.rent_vs_buy import domain as domain_mod
+
+        ir = base_ir()
+        explicit = {
+            "mortgage_term_years": 30,
+            "home_appreciation_rate_annual": 0.03,
+            "rent_growth_rate_annual": 0.03,
+            "investment_return_rate_annual": 0.05,
+            "property_tax_rate_annual": 0.011,
+            "maintenance_rate_annual": 0.01,
+            "closing_cost_pct": 0.03,
+            "selling_cost_pct": 0.06,
+            "hoa_monthly": 0,
+            "min_emergency_fund_months": 6,
+            "max_housing_cost_income_ratio": 0.28,
+            "hard_max_housing_cost_income_ratio": 0.36,
+        }
+        for name, value in explicit.items():
+            ir["variables"][name] = {
+                "value": value,
+                "unit": None,
+                "confidence": 0.9,
+                "source": "stated",
+            }
+
+        result = domain_mod.evaluate(ir)
+        self.assertEqual(result["assumptions_used"], {})
+
+        run = report_mod.make_run(ir, EXAMPLE, "rvb_explicit")
+        self.assertTrue(run["verifier_result"]["proof_checked"])
         self.assertIn(
-            "numeric_break_even_discloses_assumptions", result["passed_checks"]
+            "numeric_break_even_discloses_priors",
+            run["verifier_result"]["passed_checks"],
+        )
+        self.assertTrue(run["global_verifier_result"]["ok"])
+
+    def test_null_optional_prior_falls_back_without_crashing(self):
+        ir = base_ir()
+        for name in (
+            "mortgage_term_years",
+            "home_appreciation_rate_annual",
+            "investment_return_rate_annual",
+        ):
+            ir["variables"][name] = {
+                "value": None,
+                "unit": None,
+                "status": "unknown",
+                "confidence": 0.0,
+                "source": "unknown",
+            }
+
+        result = runtime_mod.evaluate(ir)
+
+        # Falls back to defaults (no TypeError) and discloses every nulled prior.
+        self.assertIsInstance(result["derived_values"]["break_even_years"], float)
+        used = result["assumptions_used"]
+        self.assertIn("mortgage_term_years", used)
+        self.assertIn("home_appreciation_rate_annual", used)
+        self.assertIn("investment_return_rate_annual", used)
+
+    def test_run_exposes_complete_assumption_graph(self):
+        ir = base_ir()
+        run = report_mod.make_run(ir, EXAMPLE, "rvb_graph")
+
+        assumptions = run["derived_value_assumptions"]
+        self.assertIn("down_payment_pct", assumptions["break_even_years"])
+        self.assertIn("selling_cost_pct", assumptions["break_even_years"])
+        self.assertTrue(run["global_verifier_result"]["ok"])
+        self.assertIn(
+            "numeric_outputs_disclose_assumptions",
+            run["global_verifier_result"]["passed_invariants"],
         )
 
     def test_long_enough_stay_leans_buy(self):

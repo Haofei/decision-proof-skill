@@ -37,7 +37,7 @@ class GraduateSchoolTests(unittest.TestCase):
         self.assertEqual(run["recommendation"]["status"], "do_not_recommend")
         self.assertIn("`payback_years_after_graduation`: 5.2", markdown)
         self.assertIn(
-            "Verification: PASS: Rule closure checked (GraduateSchoolDeterministicInvariants)",
+            "Verification: PASS: Deterministic domain checks passed (GraduateSchoolDeterministicInvariants)",
             markdown,
         )
         self.assertIn("## Decision Guidance", markdown)

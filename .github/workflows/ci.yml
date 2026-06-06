@@ -42,5 +42,9 @@ jobs:
         run: |
           python -m decision_proof.cli demo rent-vs-buy
           python -m decision_proof.cli verify examples/rent-vs-buy-decision.json
+      - name: Domain pack validate and golden tests
+        run: |
+          python -m decision_proof.cli domain-validate decision_proof/domains/rent_vs_buy
+          python -m decision_proof.cli domain-test decision_proof/domains/rent_vs_buy
       - name: Evaluate multi-option car scenario
         run: python -m decision_proof.cli evaluate examples/car-options-comparison.json

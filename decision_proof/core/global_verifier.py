@@ -109,6 +109,30 @@ def verify_run(run: dict[str, Any], *, expected_hash: str) -> dict[str, Any]:
             }
         )
 
+    # Every defaulted prior a numeric output depends on must be disclosed: either
+    # present in the IR variables or surfaced in assumptions_used. This keeps the
+    # dependency graph honest without requiring priors to be present (which would
+    # false-fail whenever a default is in effect).
+    assumption_map = run.get("derived_value_assumptions", {})
+    disclosed_priors = run.get("assumptions_used", {})
+    ir_variables = ir.get("variables", {})
+    undisclosed = []
+    for name, value in run.get("derived_values", {}).items():
+        if not isinstance(value, (int, float)):
+            continue
+        for prior in assumption_map.get(name, []):
+            if prior not in ir_variables and prior not in disclosed_priors:
+                undisclosed.append(f"{name} relies on undisclosed prior {prior}")
+    if not undisclosed:
+        passed.append("numeric_outputs_disclose_assumptions")
+    else:
+        failed.append(
+            {
+                "id": "numeric_outputs_disclose_assumptions",
+                "message": "; ".join(undisclosed),
+            }
+        )
+
     ranking = run.get("comparison", {}).get("ranking", [])
     options = run.get("comparison", {}).get("options", [])
     if ranking and options:

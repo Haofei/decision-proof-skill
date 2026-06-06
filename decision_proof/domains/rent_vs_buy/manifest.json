@@ -22,6 +22,171 @@
   "verifier": "python",
   "entry_point": "domain.py",
   "questions_path": "questions.md",
+  "priors": {
+    "down_payment_pct": 0.20,
+    "mortgage_term_years": 30.0,
+    "home_appreciation_rate_annual": 0.03,
+    "rent_growth_rate_annual": 0.03,
+    "property_tax_rate_annual": 0.011,
+    "maintenance_rate_annual": 0.01,
+    "investment_return_rate_annual": 0.05,
+    "closing_cost_pct": 0.03,
+    "selling_cost_pct": 0.06,
+    "hoa_monthly": 0.0,
+    "min_emergency_fund_months": 6.0,
+    "max_housing_cost_income_ratio": 0.28,
+    "hard_max_housing_cost_income_ratio": 0.36
+  },
+  "model": {
+    "intermediates": {
+      "dp_amount": {"primitive": "product", "operands": ["home_price", "down_payment_pct"]},
+      "closing_amount": {"primitive": "product", "operands": ["home_price", "closing_cost_pct"]},
+      "down_payment_cash_needed": {"primitive": "sum", "operands": ["dp_amount", "closing_amount"]},
+      "loan": {"primitive": "difference", "operands": ["home_price", "dp_amount"]},
+      "monthly_mortgage_payment": {
+        "primitive": "mortgage_payment",
+        "params": {"loan": "loan", "annual_rate": "mortgage_rate_annual", "term_years": "mortgage_term_years"}
+      },
+      "annual_tax": {"primitive": "product", "operands": ["home_price", "property_tax_rate_annual"]},
+      "monthly_tax": {"primitive": "ratio", "numerator": "annual_tax", "denominator": 12},
+      "annual_maint": {"primitive": "product", "operands": ["home_price", "maintenance_rate_annual"]},
+      "monthly_maint": {"primitive": "ratio", "numerator": "annual_maint", "denominator": 12},
+      "monthly_ownership_cost": {
+        "primitive": "sum",
+        "operands": ["monthly_mortgage_payment", "monthly_tax", "monthly_maint", "hoa_monthly"]
+      },
+      "housing_cost_income_ratio": {
+        "primitive": "ratio",
+        "numerator": "monthly_ownership_cost",
+        "denominator": "monthly_after_tax_income"
+      },
+      "break_even_years": {
+        "primitive": "rent_buy_break_even",
+        "params": {
+          "price": "home_price",
+          "loan": "loan",
+          "payment": "monthly_mortgage_payment",
+          "upfront_cash": "down_payment_cash_needed",
+          "rent0": "monthly_rent",
+          "annual_rate": "mortgage_rate_annual",
+          "term_years": "mortgage_term_years",
+          "tax_rate": "property_tax_rate_annual",
+          "maint_rate": "maintenance_rate_annual",
+          "hoa": "hoa_monthly",
+          "apprec": "home_appreciation_rate_annual",
+          "rent_growth": "rent_growth_rate_annual",
+          "invest": "investment_return_rate_annual",
+          "selling_pct": "selling_cost_pct"
+        }
+      },
+      "ownership_minus_hoa": {"primitive": "difference", "operands": ["monthly_ownership_cost", "hoa_monthly"]},
+      "price_cost_coefficient": {"primitive": "ratio", "numerator": "ownership_minus_hoa", "denominator": "home_price"},
+      "max_monthly_budget": {"primitive": "product", "operands": ["hard_max_housing_cost_income_ratio", "monthly_after_tax_income"]},
+      "budget_minus_hoa": {"primitive": "difference", "operands": ["max_monthly_budget", "hoa_monthly"]},
+      "max_home_price_raw": {"primitive": "ratio", "numerator": "budget_minus_hoa", "denominator": "price_cost_coefficient"},
+      "max_home_price_within_budget": {"primitive": "positive_difference", "operands": ["max_home_price_raw", 0]},
+      "horizon_years": {"primitive": "sum", "operands": ["expected_years_in_home"]}
+    }
+  },
+  "constraints": [
+    {
+      "id": "G1",
+      "claim": "cash_safety",
+      "kind": "threshold",
+      "value": "emergency_fund_months_after",
+      "op": "gte",
+      "limit": "min_emergency_fund_months",
+      "severity_on_fail": "hard",
+      "dependencies": ["emergency_fund_months_after", "min_emergency_fund_months"],
+      "open_reason": "post-purchase emergency fund cannot be checked without emergency_fund_months_after",
+      "reason_closed": "{value:g} months of emergency fund remain, at or above the {limit:g}-month floor",
+      "reason_failed": "only {value:g} months of emergency fund remain, below the {limit:g}-month floor"
+    },
+    {
+      "id": "G2",
+      "claim": "affordability",
+      "kind": "ratio_band",
+      "value": "housing_cost_income_ratio",
+      "comfort_limit": "max_housing_cost_income_ratio",
+      "hard_limit": "hard_max_housing_cost_income_ratio",
+      "dependencies": ["home_price", "mortgage_rate_annual", "monthly_after_tax_income"],
+      "open_reason": "housing cost or income is unknown",
+      "reason_closed": "housing cost is {value:.1%} of after-tax income",
+      "reason_comfort_breach": "housing cost is {value:.1%}, above the {comfort:.0%} comfort threshold",
+      "reason_hard_breach": "housing cost is {value:.1%}, above the {hard:.0%} hard ceiling"
+    },
+    {
+      "id": "G3",
+      "claim": "stay_long_enough",
+      "kind": "cases",
+      "decisive": true,
+      "cases": [
+        {
+          "when": {
+            "any": [
+              {"variable_unknown": "expected_years_in_home"},
+              {"variable_unknown": "home_price"},
+              {"variable_unknown": "mortgage_rate_annual"},
+              {"variable_unknown": "monthly_rent"}
+            ]
+          },
+          "status": "open",
+          "severity": "warning",
+          "reason": "cannot compare your stay to the buy/rent break-even without expected_years_in_home, home_price, mortgage_rate_annual and monthly_rent",
+          "dependencies": ["expected_years_in_home", "home_price", "mortgage_rate_annual", "monthly_rent"]
+        },
+        {
+          "when": {"value_unknown": "break_even_years"},
+          "status": "failed",
+          "severity": "warning",
+          "reason": "buying does not break even versus renting within 40 years on these assumptions",
+          "dependencies": ["expected_years_in_home", "home_price", "mortgage_rate_annual", "monthly_rent"]
+        },
+        {
+          "when": {"value_at_least": {"name": "horizon_years", "limit": "break_even_years"}},
+          "status": "closed",
+          "severity": "soft",
+          "reason": "you plan to stay {horizon_years:g} years, at or beyond the {break_even_years:.1f}-year buy/rent break-even",
+          "dependencies": ["expected_years_in_home", "home_price", "mortgage_rate_annual", "monthly_rent"]
+        },
+        {
+          "when": {},
+          "status": "failed",
+          "severity": "warning",
+          "reason": "you plan to stay {horizon_years:g} years, short of the {break_even_years:.1f}-year buy/rent break-even",
+          "dependencies": ["expected_years_in_home", "home_price", "mortgage_rate_annual", "monthly_rent"]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "target_claim": "buying_beats_renting_over_horizon",
+    "evidence_variables": ["home_price", "mortgage_rate_annual", "monthly_rent", "expected_years_in_home"],
+    "open_blocks_conclusion": ["cash_safety", "affordability", "stay_long_enough"],
+    "key_dependencies": ["home_price", "mortgage_rate_annual", "monthly_rent", "expected_years_in_home", "monthly_after_tax_income"]
+  },
+  "derived_values": {
+    "down_payment_cash_needed": "down_payment_cash_needed",
+    "monthly_mortgage_payment": "monthly_mortgage_payment",
+    "monthly_ownership_cost": "monthly_ownership_cost",
+    "housing_cost_income_ratio": {"source": "housing_cost_income_ratio", "round": 4},
+    "break_even_years": "break_even_years"
+  },
+  "sensitivity": {
+    "current": {
+      "break_even_years": "break_even_years",
+      "expected_years_in_home": "expected_years_in_home",
+      "home_price": "home_price",
+      "monthly_rent": "monthly_rent",
+      "monthly_ownership_cost": "monthly_ownership_cost",
+      "housing_cost_income_ratio": {"source": "housing_cost_income_ratio", "round": 4}
+    },
+    "flip_conditions": {
+      "must_stay_years_to_break_even": "break_even_years",
+      "max_home_price_within_budget": "max_home_price_within_budget"
+    },
+    "unknown_variables": ["home_price", "mortgage_rate_annual", "monthly_rent", "expected_years_in_home", "monthly_after_tax_income"]
+  },
   "guidance_config": {
     "mode": "goal_cases",
     "cases": [
@@ -198,5 +363,35 @@
     "monthly_ownership_cost": ["home_price", "mortgage_rate_annual"],
     "housing_cost_income_ratio": ["home_price", "mortgage_rate_annual", "monthly_after_tax_income"],
     "break_even_years": ["home_price", "mortgage_rate_annual", "monthly_rent"]
+  },
+  "derived_value_assumptions": {
+    "down_payment_cash_needed": ["down_payment_pct", "closing_cost_pct"],
+    "monthly_mortgage_payment": ["down_payment_pct", "mortgage_term_years"],
+    "monthly_ownership_cost": [
+      "down_payment_pct",
+      "mortgage_term_years",
+      "property_tax_rate_annual",
+      "maintenance_rate_annual",
+      "hoa_monthly"
+    ],
+    "housing_cost_income_ratio": [
+      "down_payment_pct",
+      "mortgage_term_years",
+      "property_tax_rate_annual",
+      "maintenance_rate_annual",
+      "hoa_monthly"
+    ],
+    "break_even_years": [
+      "down_payment_pct",
+      "mortgage_term_years",
+      "home_appreciation_rate_annual",
+      "rent_growth_rate_annual",
+      "property_tax_rate_annual",
+      "maintenance_rate_annual",
+      "investment_return_rate_annual",
+      "closing_cost_pct",
+      "selling_cost_pct",
+      "hoa_monthly"
+    ]
   }
 }
