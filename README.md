@@ -121,12 +121,20 @@ Use $decision-proof to help me decide whether I should buy a car.
 
 ## Scripts
 
-Preferred CLI surface:
+Preferred CLI surface. The flagship flow is the rent-vs-buy decision; car is a small feature demo:
+
+```bash
+python3 -m decision_proof.cli demo rent-vs-buy
+python3 -m decision_proof.cli evaluate examples/rent-vs-buy-decision.json
+python3 -m decision_proof.cli report examples/rent-vs-buy-decision.json --md-out /tmp/rent_vs_buy.md
+python3 -m decision_proof.cli next-questions examples/rent-vs-buy-decision.json
+python3 -m decision_proof.cli verify examples/rent-vs-buy-decision.json
+```
+
+Car remains available as a feature demo:
 
 ```bash
 python3 -m decision_proof.cli demo car-options
-python3 -m decision_proof.cli next-questions examples/car-decision.json
-python3 -m decision_proof.cli verify examples/car-decision.json
 python3 -m decision_proof.cli report examples/car-options-comparison.json --json-out /tmp/options_run.json --md-out /tmp/options_report.md
 ```
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from decision_proof.core.domain_shared import (
+    applied_defaults,
     evidence_quality_from_variables,
     goal,
     has_failed_goal,
@@ -285,6 +286,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         )
 
     failed_hard = has_failed_goal(goals, severity="hard")
+    caution_failed = has_failed_goal(goals, severity="warning")
     open_required = bool(missing) or any(
         g["id"] == "G3" and g["status"] == "open" for g in goals
     )
@@ -302,9 +304,11 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         open_required=open_required,
         positive_case=net_monthly_value is not None and net_monthly_value > margin,
         evidence_quality=evidence,
+        caution_failed=caution_failed,
     )
 
     return {
+        "assumptions_used": applied_defaults(ir, DEFAULTS),
         "derived_values": {
             "monthly_commute_time_saved_hours": round(commute_time_saved, 2)
             if commute_time_saved is not None

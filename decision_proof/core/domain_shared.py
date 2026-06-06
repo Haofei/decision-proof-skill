@@ -177,6 +177,21 @@ def numeric_ir_value(
     return numeric_mapping_value(ir.get("variables", {}), name, default)
 
 
+def applied_defaults(ir: dict[str, Any], defaults: dict[str, Any]) -> dict[str, float]:
+    """Defaults that silently shaped the result because the IR omitted them.
+
+    Only counts variables fully absent from the IR. An explicit null (status
+    ``unknown``) is a disclosed unknown that opens a goal, not a silent default,
+    so it is deliberately excluded.
+    """
+    variables = ir.get("variables", {})
+    if not isinstance(variables, dict):
+        return {}
+    return {
+        name: float(value) for name, value in defaults.items() if name not in variables
+    }
+
+
 def boolish(raw: Any) -> bool | None:
     if raw is None:
         return None
@@ -221,13 +236,24 @@ def recommendation_status(
     positive_case: bool,
     evidence_quality: str,
     baseline: bool = False,
+    caution_failed: bool = False,
 ) -> str:
+    """Map proof state to a recommendation.
+
+    ``caution_failed`` is for warning-severity failed goals (a real but
+    non-fatal breach, e.g. a cost above the comfort threshold but below the
+    hard ceiling). It cannot coexist with a positive recommendation: the best
+    it allows is ``lean_no``, so guidance that says "this is unsafe" never sits
+    next to a recommend/lean_yes conclusion.
+    """
     if baseline:
         return "baseline"
     if hard_failed:
         return "do_not_recommend"
     if open_required:
         return "insufficient_evidence"
+    if caution_failed:
+        return "lean_no"
     if positive_case and evidence_quality == "strong":
         return "recommend"
     if positive_case:

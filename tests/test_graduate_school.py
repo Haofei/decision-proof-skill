@@ -36,11 +36,37 @@ class GraduateSchoolTests(unittest.TestCase):
         self.assertEqual(run["domain"], "graduate_school")
         self.assertEqual(run["recommendation"]["status"], "do_not_recommend")
         self.assertIn("`payback_years_after_graduation`: 5.2", markdown)
-        self.assertIn("Verification: OPEN", markdown)
+        self.assertIn(
+            "Verification: PASS: Rule closure checked (GraduateSchoolDeterministicInvariants)",
+            markdown,
+        )
         self.assertIn("## Decision Guidance", markdown)
         self.assertIn("funding-path problem", run["guidance"]["summary"])
         self.assertIn("$50,000", run["guidance"]["focus"])
         self.assertIn("$186,667/year", run["guidance"]["next_step"])
+
+    def test_report_discloses_default_risk_window_assumption(self):
+        ir_path = ROOT / "examples" / "graduate-school-decision.json"
+        ir = load_json(ir_path)
+
+        run = make_run(ir, ir_path, "grad_assume")
+        markdown = render_markdown(run)
+
+        # risk_tolerance is "low" and the example omits the window prior.
+        self.assertEqual(
+            run["assumptions_used"], {"target_payback_years_low_risk": 3.0}
+        )
+        self.assertIn("## Default Assumptions (priors)", markdown)
+        self.assertIn("`target_payback_years_low_risk`: 3", markdown)
+
+    def test_domain_verifier_passes_on_example(self):
+        from decision_proof.domains.graduate_school import domain as domain_mod
+
+        result = domain_mod.verify(ROOT / "examples" / "graduate-school-decision.json")
+
+        self.assertTrue(result["proof_checked"])
+        self.assertEqual(result["failed_checks"], [])
+        self.assertIn("do_not_recommend_requires_hard_fail", result["passed_checks"])
 
     def test_negative_salary_premium_stays_hard_fail(self):
         ir = load_json(ROOT / "examples" / "graduate-school-decision.json")

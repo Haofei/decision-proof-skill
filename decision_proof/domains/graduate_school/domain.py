@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 from decision_proof.core.domain_metadata import domain_manifest
 from decision_proof.core.domain_shared import (
+    applied_defaults,
     boolish,
     evidence_quality_from_variables,
     goal,
@@ -220,6 +222,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         )
 
     hard_failed = has_failed_goal(goals, severity="hard")
+    caution_failed = has_failed_goal(goals, severity="warning")
     open_required = any(
         item["id"] in {"G1", "G2"} and item["status"] == "open" for item in goals
     )
@@ -240,9 +243,11 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         and risk_window is not None
         and payback_years <= risk_window,
         evidence_quality=evidence,
+        caution_failed=caution_failed,
     )
 
     return {
+        "assumptions_used": assumptions_used(ir),
         "derived_values": {
             "cash_cost": round(cash_cost, 2) if cash_cost is not None else None,
             "opportunity_cost": round(opportunity_cost, 2)
@@ -363,12 +368,93 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def assumptions_used(ir: dict[str, Any]) -> dict[str, float]:
+    """The risk-window prior that shaped the payback comparison, if defaulted.
+
+    Only the window for the chosen risk tolerance actually drives the result, so
+    only that one is disclosed (and only when the IR did not override it).
+    """
+    risk_keys = {
+        "low": "target_payback_years_low_risk",
+        "medium": "target_payback_years_medium_risk",
+        "high": "target_payback_years_high_risk",
+    }
+    key = risk_keys.get(text_variable_value(ir, "risk_tolerance"))
+    if key is None:
+        return {}
+    return applied_defaults(ir, {key: DEFAULTS[key]})
+
+
 def verify(ir_path: Path) -> dict[str, Any]:
+    """Deterministic domain invariants (no Lean backend yet)."""
+    ir = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+    evaluation = evaluate(ir)
+    sensitivity = thresholds(ir)
+
+    status = evaluation["recommendation"]["status"]
+    goals = evaluation["proof_state"]["goals"]
+    derived = evaluation["derived_values"]
+    flip = sensitivity["flip_conditions"]
+
+    goal_map = {item["claim"]: item for item in goals}
+    positive = status in {"recommend", "lean_yes"}
+    open_goals = [item for item in goals if item["status"] == "open"]
+    hard_fail_any = any(
+        item["status"] == "failed" and item.get("severity") == "hard" for item in goals
+    )
+
+    def hard_fail(claim: str) -> bool:
+        item = goal_map.get(claim, {})
+        return item.get("status") == "failed" and item.get("severity") == "hard"
+
+    payback = derived.get("payback_years_after_graduation")
+    break_even_salary = flip.get("break_even_post_grad_salary_for_risk_window")
+
+    checks = [
+        (
+            "salary_premium_hard_fail_blocks_positive",
+            not (hard_fail("salary_premium_positive") and positive),
+            "a negative salary premium cannot coexist with recommend/lean_yes",
+        ),
+        (
+            "funding_hard_fail_blocks_positive",
+            not (hard_fail("funding_path_clear") and positive),
+            "a hard funding failure cannot coexist with recommend/lean_yes",
+        ),
+        (
+            "do_not_recommend_requires_hard_fail",
+            status != "do_not_recommend" or hard_fail_any,
+            "do_not_recommend must be backed by a hard-severity failed goal",
+        ),
+        (
+            "insufficient_evidence_requires_open_goal",
+            status != "insufficient_evidence" or bool(open_goals),
+            "insufficient_evidence requires at least one open proof goal",
+        ),
+        (
+            "payback_years_non_negative",
+            payback is None or payback >= 0,
+            "payback years must be non-negative or null",
+        ),
+        (
+            "break_even_salary_non_negative",
+            break_even_salary is None or break_even_salary >= 0,
+            "break-even post-grad salary must be non-negative or null",
+        ),
+    ]
+
+    passed = [name for name, ok, _ in checks if ok]
+    failed = [
+        {"id": name, "message": message} for name, ok, message in checks if not ok
+    ]
+
     return {
-        "ok": False,
-        "proof_checked": False,
-        "error": "no verifier implemented for graduate_school",
-        "returncode": 1,
+        "ok": not failed,
+        "proof_checked": not failed,
+        "proved_predicate": "GraduateSchoolDeterministicInvariants",
+        "recommendation_status": status,
+        "passed_checks": passed,
+        "failed_checks": failed,
     }
 
 

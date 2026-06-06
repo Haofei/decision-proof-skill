@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from decision_proof.core.domain_shared import error_payload
-from decision_proof.demo import car_options_demo
+from decision_proof.demo import car_options_demo, rent_vs_buy_demo
 from decision_proof.diff import diff_runs
 from decision_proof.diff import load_json as load_diff_json
 from decision_proof.diff import render_markdown as render_diff_markdown
@@ -61,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     next_questions_parser.add_argument("ir_json", type=Path)
 
     demo_parser = subparsers.add_parser("demo", help="Run a repository demo flow")
-    demo_parser.add_argument("name", choices=["car-options"])
+    demo_parser.add_argument("name", choices=["car-options", "rent-vs-buy"])
     demo_parser.add_argument("--md-out", type=Path)
 
     return parser
@@ -115,24 +115,32 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "demo":
-        if args.name != "car-options":
+        if args.name == "car-options":
+            payload = car_options_demo()
+            summary = {
+                "demo": payload["demo"],
+                "decision_id": payload["decision_id"],
+                "best_option": payload["best_option"],
+                "ranking": payload["ranking"],
+                "options": payload["options"],
+                "next_questions": payload["next_questions"],
+            }
+        elif args.name == "rent-vs-buy":
+            payload = rent_vs_buy_demo()
+            summary = {
+                "demo": payload["demo"],
+                "decision_id": payload["decision_id"],
+                "recommendation": payload["recommendation"],
+                "break_even_years": payload["break_even_years"],
+                "guidance": payload["guidance"],
+                "assumptions_used": payload["assumptions_used"],
+                "next_questions": payload["next_questions"],
+            }
+        else:
             raise ValueError(f"unsupported demo: {args.name}")
-        payload = car_options_demo()
         if args.md_out:
             args.md_out.write_text(payload["markdown_report"] + "\n", encoding="utf-8")
-        print(
-            json.dumps(
-                {
-                    "demo": payload["demo"],
-                    "decision_id": payload["decision_id"],
-                    "best_option": payload["best_option"],
-                    "ranking": payload["ranking"],
-                    "options": payload["options"],
-                    "next_questions": payload["next_questions"],
-                },
-                indent=2,
-            )
-        )
+        print(json.dumps(summary, indent=2))
         return 0
 
     before = load_diff_json(args.from_run_json)

@@ -86,6 +86,8 @@ def make_run(
     }
     if "comparison" in evaluation:
         run["comparison"] = evaluation["comparison"]
+    if "assumptions_used" in evaluation:
+        run["assumptions_used"] = evaluation["assumptions_used"]
     run["derived_value_dependencies"] = derived_value_dependencies(ir, run)
     run["guidance"] = guidance(ir, run)
     run["global_verifier_result"] = verify_run(run, expected_hash=input_hash)
@@ -155,6 +157,23 @@ def render_markdown(run: dict[str, Any]) -> str:
     lines.extend(["", "## Key Derived Values", ""])
     for key, value in derived.items():
         lines.append(f"- `{key}`: {format_value(value)}")
+
+    assumptions = run.get("assumptions_used", {})
+    if assumptions:
+        lines.extend(
+            [
+                "",
+                "## Default Assumptions (priors)",
+                "",
+                "_Applied because the input did not specify them. They shaped the result and are not user-verified facts._",
+                "",
+            ]
+        )
+        for key, value in assumptions.items():
+            rendered = (
+                format(value, "g") if isinstance(value, (int, float)) else str(value)
+            )
+            lines.append(f"- `{key}`: {rendered}")
 
     if comparison.get("options"):
         lines.extend(["", "## Option Ranking", ""])

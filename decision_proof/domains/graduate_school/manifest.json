@@ -18,7 +18,7 @@
     "sensitivity",
     "guidance"
   ],
-  "verifier": "none",
+  "verifier": "python",
   "entry_point": "domain.py",
   "questions_path": "questions.md",
   "guidance_config": {

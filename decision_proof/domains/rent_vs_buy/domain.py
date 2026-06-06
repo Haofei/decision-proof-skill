@@ -16,11 +16,13 @@ than being silently defaulted.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 from decision_proof.core.domain_metadata import domain_manifest
 from decision_proof.core.domain_shared import (
+    applied_defaults,
     evidence_quality_from_variables,
     goal,
     has_failed_goal,
@@ -356,6 +358,7 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         )
 
     hard_failed = has_failed_goal(goals, severity="hard")
+    caution_failed = has_failed_goal(goals, severity="warning")
     open_required = any(
         item["id"] in {"G1", "G2", "G3"} and item["status"] == "open" for item in goals
     )
@@ -376,9 +379,11 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
         open_required=open_required,
         positive_case=positive_case,
         evidence_quality=evidence,
+        caution_failed=caution_failed,
     )
 
     return {
+        "assumptions_used": assumptions_used(ir),
         "derived_values": {
             "down_payment_cash_needed": round(model["down_payment_cash_needed"], 2)
             if model["down_payment_cash_needed"] is not None
@@ -470,12 +475,92 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def assumptions_used(ir: dict[str, Any]) -> dict[str, float]:
+    """Resolved priors that were applied because the IR did not supply them."""
+    return applied_defaults(ir, DEFAULTS)
+
+
 def verify(ir_path: Path) -> dict[str, Any]:
+    """Deterministic domain invariants (no Lean backend yet).
+
+    Re-derives the model from the IR and checks that the recommendation is
+    consistent with the proof state and that numeric outputs disclose the
+    priors that produced them.
+    """
+    ir = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+    evaluation = evaluate(ir)
+    sensitivity = thresholds(ir)
+
+    status = evaluation["recommendation"]["status"]
+    goals = evaluation["proof_state"]["goals"]
+    derived = evaluation["derived_values"]
+    flip = sensitivity["flip_conditions"]
+    used = evaluation.get("assumptions_used", {})
+
+    goal_map = {item["claim"]: item for item in goals}
+    positive = status in {"recommend", "lean_yes"}
+    open_goals = [item for item in goals if item["status"] == "open"]
+    hard_fail_any = any(
+        item["status"] == "failed" and item.get("severity") == "hard" for item in goals
+    )
+
+    def hard_fail(claim: str) -> bool:
+        item = goal_map.get(claim, {})
+        return item.get("status") == "failed" and item.get("severity") == "hard"
+
+    break_even = derived.get("break_even_years")
+    max_home_price = flip.get("max_home_price_within_budget")
+
+    checks = [
+        (
+            "cash_safety_hard_fail_blocks_positive",
+            not (hard_fail("cash_safety") and positive),
+            "a hard cash-safety failure cannot coexist with recommend/lean_yes",
+        ),
+        (
+            "affordability_hard_fail_blocks_positive",
+            not (hard_fail("affordability") and positive),
+            "a hard affordability failure cannot coexist with recommend/lean_yes",
+        ),
+        (
+            "do_not_recommend_requires_hard_fail",
+            status != "do_not_recommend" or hard_fail_any,
+            "do_not_recommend must be backed by a hard-severity failed goal",
+        ),
+        (
+            "insufficient_evidence_requires_open_goal",
+            status != "insufficient_evidence" or bool(open_goals),
+            "insufficient_evidence requires at least one open proof goal",
+        ),
+        (
+            "break_even_years_non_negative",
+            break_even is None or break_even >= 0,
+            "break_even_years must be non-negative or null",
+        ),
+        (
+            "max_home_price_within_budget_non_negative",
+            max_home_price is None or max_home_price >= 0,
+            "max_home_price_within_budget must be non-negative or null",
+        ),
+        (
+            "numeric_break_even_discloses_assumptions",
+            break_even is None or bool(used),
+            "a numeric break-even horizon must disclose the priors that produced it",
+        ),
+    ]
+
+    passed = [name for name, ok, _ in checks if ok]
+    failed = [
+        {"id": name, "message": message} for name, ok, message in checks if not ok
+    ]
+
     return {
-        "ok": False,
-        "proof_checked": False,
-        "error": "no verifier implemented for rent_vs_buy",
-        "returncode": 1,
+        "ok": not failed,
+        "proof_checked": not failed,
+        "proved_predicate": "RentVsBuyDeterministicInvariants",
+        "recommendation_status": status,
+        "passed_checks": passed,
+        "failed_checks": failed,
     }
 
 

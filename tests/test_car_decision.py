@@ -172,6 +172,35 @@ class CarDecisionTests(unittest.TestCase):
 
         self.assertEqual(result["recommendation"]["status"], "do_not_recommend")
 
+    def test_warning_affordability_caps_positive_at_lean_no(self):
+        ir = base_ir()
+        # 900 / 5000 = 18%: above the 15% comfort line, below the 20% hard ceiling.
+        ir["variables"]["monthly_car_cost"]["value"] = 900
+
+        result = evaluate_mod.evaluate(ir)
+
+        affordability = next(
+            g
+            for g in result["proof_state"]["goals"]
+            if g["claim"] == "income_affordability"
+        )
+        self.assertEqual(affordability["status"], "failed")
+        self.assertEqual(affordability["severity"], "warning")
+        self.assertEqual(result["recommendation"]["status"], "lean_no")
+
+    def test_evaluate_discloses_applied_default_assumptions(self):
+        ir = base_ir()
+
+        result = evaluate_mod.evaluate(ir)
+
+        used = result["assumptions_used"]
+        self.assertEqual(used["max_car_cost_income_ratio"], 0.15)
+        self.assertIn("decision_margin", used)
+        self.assertIn("comfort_value_monthly", used)
+        # Variables the IR provides explicitly must not be listed as defaults.
+        self.assertNotIn("monthly_car_cost", used)
+        self.assertNotIn("commute_days_per_month", used)
+
     def test_hard_threshold_rounding(self):
         ir = base_ir()
         ir["variables"]["monthly_car_cost"]["value"] = 1000

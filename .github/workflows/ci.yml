@@ -36,6 +36,11 @@ jobs:
           python -m decision_proof.cli report examples/car-decision.json --run-id run_unknown --json-out /tmp/run_unknown.json --md-out /tmp/run_unknown.md
           python -m decision_proof.cli report examples/car-decision-value-time-100.json --run-id run_value_time_100 --json-out /tmp/run_value_time_100.json --md-out /tmp/run_value_time_100.md
           python -m decision_proof.cli report examples/graduate-school-decision.json --run-id run_grad --json-out /tmp/run_grad.json --md-out /tmp/run_grad.md
+          python -m decision_proof.cli report examples/rent-vs-buy-decision.json --run-id run_rvb --json-out /tmp/run_rvb.json --md-out /tmp/run_rvb.md
           python -m decision_proof.cli diff /tmp/run_unknown.json /tmp/run_value_time_100.json
+      - name: Flagship rent-vs-buy demo and verify
+        run: |
+          python -m decision_proof.cli demo rent-vs-buy
+          python -m decision_proof.cli verify examples/rent-vs-buy-decision.json
       - name: Evaluate multi-option car scenario
         run: python -m decision_proof.cli evaluate examples/car-options-comparison.json

@@ -48,6 +48,49 @@ class RentVsBuyTests(unittest.TestCase):
         self.assertIn("## Decision Guidance", markdown)
         self.assertNotIn("years years", markdown)
 
+    def test_report_discloses_applied_default_assumptions(self):
+        ir = base_ir()
+
+        run = report_mod.make_run(ir, EXAMPLE, "rvb_assume")
+        markdown = report_mod.render_markdown(run)
+
+        used = run["assumptions_used"]
+        # Defaults the example omits must be disclosed...
+        self.assertIn("mortgage_term_years", used)
+        self.assertEqual(used["property_tax_rate_annual"], 0.011)
+        # ...and priors the example provides explicitly must NOT be re-listed.
+        self.assertNotIn("down_payment_pct", used)
+        self.assertNotIn("home_appreciation_rate_annual", used)
+        self.assertIn("## Default Assumptions (priors)", markdown)
+        self.assertIn("`property_tax_rate_annual`: 0.011", markdown)
+
+    def test_warning_affordability_caps_positive_at_lean_no(self):
+        ir = base_ir()
+        # Long stay (would be positive) but housing cost lands in the
+        # warning band (above comfort 28%, below hard ceiling 36%).
+        set_value(ir, "expected_years_in_home", 15)
+        set_value(ir, "monthly_after_tax_income", 13000)
+
+        result = runtime_mod.evaluate(ir)
+
+        affordability = next(
+            g for g in result["proof_state"]["goals"] if g["claim"] == "affordability"
+        )
+        self.assertEqual(affordability["status"], "failed")
+        self.assertEqual(affordability["severity"], "warning")
+        self.assertEqual(result["recommendation"]["status"], "lean_no")
+
+    def test_domain_verifier_passes_on_example(self):
+        from decision_proof.domains.rent_vs_buy import domain as domain_mod
+
+        result = domain_mod.verify(EXAMPLE)
+
+        self.assertTrue(result["proof_checked"])
+        self.assertEqual(result["failed_checks"], [])
+        self.assertIn(
+            "numeric_break_even_discloses_assumptions", result["passed_checks"]
+        )
+
     def test_long_enough_stay_leans_buy(self):
         ir = base_ir()
         set_value(ir, "expected_years_in_home", 15)
