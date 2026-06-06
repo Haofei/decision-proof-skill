@@ -56,4 +56,4 @@ wait_6_months
 
 Each option should carry its own cost, time, risk, constraints, utility, evidence quality, and proof goals.
 
-The next major engine step is to connect option comparison to report generation, decision diffs, and Lean/verifier invariants.
+The next major engine step is to connect option comparison to report generation, decision diffs, and verifier invariants.

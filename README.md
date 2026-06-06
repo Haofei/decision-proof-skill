@@ -24,7 +24,7 @@ What would have to change for the conclusion to flip?
 - Checks hard constraints before soft preferences.
 - Computes break-even thresholds and sensitivity points.
 - Tracks proof goals as `closed`, `open`, `failed`, or `assumption`.
-- Uses Python for calculations and a Lean backend for proof-checked rule closure.
+- Uses Python for calculations and deterministic verifiers for proof-checked rule closure.
 - Produces conditional recommendations instead of pretending to know the future.
 
 ## Decision Workspace Shape
@@ -167,13 +167,12 @@ python3 -m decision_proof.cli report examples/car-decision-value-time-100.json -
 python3 -m decision_proof.cli diff /tmp/run_unknown.json /tmp/run_value_time_100.json --md
 ```
 
-Generate and check a Lean proof:
+Validate a domain pack and run its golden cases:
 
 ```bash
-python3 -m decision_proof.domains.car.verifier examples/car-decision-lean-yes.json --out /tmp/CarDecisionProof.lean
+python3 -m decision_proof.cli domain-validate decision_proof/domains/rent_vs_buy
+python3 -m decision_proof.cli domain-test decision_proof/domains/rent_vs_buy
 ```
-
-The Lean backend checks that the recommendation predicate follows from the concrete numbers and rules. It does not prove the real-world estimates are true.
 
 Run tests:
 
@@ -205,21 +204,23 @@ decision_proof/domains/
 
 ## Design Boundary
 
-Lean checks:
+The deterministic verifiers (a per-domain invariant checker plus the cross-domain
+global verifier) check **rule closure**:
 
-- hard constraint predicates
-- affordability predicates
-- positive or non-positive net value
-- recommendation predicates implied by those facts
+- a hard-failed constraint can never coexist with a positive recommendation
+- `insufficient_evidence` requires at least one open proof goal
+- numeric outputs declare their inputs, and unknowns never silently feed them
+- every defaulted prior behind a numeric output is disclosed
+- option rankings respect status order
 
-Lean does not check:
+They do **not** check:
 
 - whether user estimates are true
 - whether future stability claims are true
 - whether the user's comfort value is psychologically accurate
 - whether external salaries, prices, or laws are current
 
-That boundary is intentional. The skill proves rule closure, not reality.
+That boundary is intentional. The verifiers prove rule closure, not reality.
 
 ## Why This Helps
 

@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import json
-import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 
 from decision_proof.domains.car import evaluator as evaluate_mod
-from decision_proof.domains.car import verifier as verifier_mod
 from decision_proof.validation import validate as validate_ir
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -249,25 +245,14 @@ class CarDecisionTests(unittest.TestCase):
         )
         self.assertTrue(any("monthly_after_tax_income" in error for error in errors))
 
-    def test_lean_generator_refuses_unknown_numeric_inputs(self):
-        ir = base_ir()
-        ir["variables"]["value_of_time"]["value"] = None
-        ir["variables"]["value_of_time"]["status"] = "unknown"
-        ir["variables"]["value_of_time"]["source"] = "unknown"
+    def test_domain_verifier_passes_on_recommend_case(self):
+        from decision_proof.domains.car import domain as car_domain
 
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(ir, handle)
-            path = handle.name
+        result = car_domain.verify(ROOT / "examples" / "car-decision-lean-yes.json")
 
-        proc = subprocess.run(
-            ["python3", "-m", verifier_mod.__name__, path],
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-
-        self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("value_of_time", proc.stdout)
+        self.assertTrue(result["proof_checked"])
+        self.assertEqual(result["failed_checks"], [])
+        self.assertIn("do_not_recommend_requires_hard_fail", result["passed_checks"])
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@
     "comparison",
     "guidance"
   ],
-  "verifier": "lean",
+  "verifier": "python",
   "entry_point": "domain.py",
   "questions_path": "questions.md",
   "options_module": "options.py",

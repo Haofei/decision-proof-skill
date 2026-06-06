@@ -118,7 +118,7 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
 
 
 def verify(ir_path: Path) -> dict[str, Any]:
-    """Deterministic domain invariants (no Lean backend yet)."""
+    """Deterministic domain invariants."""
     ir = load_ir(ir_path)
     evaluation = evaluate(ir)
     sensitivity = thresholds(ir)

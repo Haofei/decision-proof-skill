@@ -26,7 +26,7 @@ If these premises, constraints, values, and estimates hold, then this conclusion
 If any critical premise changes, recompute the conclusion.
 ```
 
-Never present a low-evidence estimate as a fact. Never ask Lean, a verifier, or a calculator to prove real-world truth. Use verification only to check that the conclusion follows from the provided premises and rules.
+Never present a low-evidence estimate as a fact. Never ask a verifier or calculator to prove real-world truth. Use verification only to check that the conclusion follows from the provided premises and rules.
 
 ## Workflow
 
@@ -60,10 +60,9 @@ Use only these states:
 ## Resources
 
 - `references/decision-ir-schema.md`: Decision IR fields and conventions.
-- `references/proof-state.md`: Lean-like proof goals and goal status semantics.
+- `references/proof-state.md`: Proof goals and goal status semantics.
 - `references/car-decision-model.md`: MVP car decision variables, rules, and thresholds.
 - `references/output-format.md`: Required user-facing answer structure.
-- `references/lean-backend.md`: Boundary and pipeline for generated Lean proof certificates.
 - `references/decision-workspace.md`: Productized workspace/report/diff model for Decision Proof.
 - `references/product-architecture.md`: Domain pack, run artifact, API, and data-model direction for productization.
 - `references/domain-pack-contract.md`: The LLM author contract — how an authoring agent turns an expert's methodology into a domain pack, and the quality bar (golden cases, evidence policy, escalation boundary, disclosure, verifier coverage) a pack must clear.
@@ -73,4 +72,5 @@ Use only these states:
 - `python3 -m decision_proof.cli diff <from-run.json> <to-run.json> --md`: Compare two run artifacts and show decision diffs.
 - `python3 -m decision_proof.cli next-questions <ir.json>`: Generate deterministic next questions.
 - `python3 -m decision_proof.cli verify <ir.json>`: Run domain and global verifiers for a Decision IR.
-- `python3 -m decision_proof.domains.car.verifier <ir.json> --out <proof.lean>`: Generate a concrete Lean proof certificate for a car-decision IR and call `lean` to check it.
+- `python3 -m decision_proof.cli domain-validate <domain_dir>`: Validate a domain pack's manifest.
+- `python3 -m decision_proof.cli domain-test <domain_dir>`: Run a domain pack's golden cases.

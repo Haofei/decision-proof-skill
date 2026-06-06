@@ -17,7 +17,7 @@ This reference captures the productization direction for Decision Proof. The cur
    - Computes derived values, constraints, sensitivity, reports, diffs, and option rankings.
 
 4. **Verification layer**
-   - Lean or deterministic rule checkers
+   - Deterministic rule checkers
    - Checks rule closure and invariants; does not check whether real-world estimates are true.
 
 ## Domain Pack Shape
@@ -191,7 +191,7 @@ Compute flip conditions.
 POST /decisions/:id/verify
 ```
 
-Run verifier or Lean backend.
+Run the deterministic verifier.
 
 ```http
 GET /decisions/:id/report
@@ -218,4 +218,4 @@ Return decision diff between two runs.
 - Do not let LLM output final recommendations without an evaluator result when a domain evaluator exists.
 - Do not let hard constraint failures be overridden by soft preferences.
 - Do not treat unknown as zero.
-- Do not expose Lean as the main feature for ordinary users; expose it as a verifier badge.
+- Do not expose verifier internals as the main feature for ordinary users; expose verification as a badge.

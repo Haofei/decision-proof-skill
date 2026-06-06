@@ -118,12 +118,9 @@ def verifier_badge(verifier: dict[str, Any]) -> str:
         return (
             f"OPEN: Not proof-checked ({verifier.get('error', 'verifier incomplete')})"
         )
-    predicate = verifier.get("proved_predicate")
-    # A deterministic checker reports passed_checks; a Lean backend does not.
-    # Distinguish them so a formal proof is not conflated with invariant checks.
-    if verifier.get("passed_checks") is not None:
-        return f"PASS: Deterministic domain checks passed ({predicate})"
-    return f"PASS: Lean rule closure checked ({predicate})"
+    return (
+        f"PASS: Deterministic domain checks passed ({verifier.get('proved_predicate')})"
+    )
 
 
 def render_markdown(run: dict[str, Any]) -> str:

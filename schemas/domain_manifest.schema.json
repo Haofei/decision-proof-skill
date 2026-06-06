@@ -40,7 +40,7 @@
     },
     "verifier": {
       "type": "string",
-      "enum": ["none", "lean", "python"]
+      "enum": ["none", "python"]
     },
     "entry_point": {
       "type": "string",

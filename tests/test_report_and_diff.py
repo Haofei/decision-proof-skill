@@ -20,7 +20,9 @@ class ReportAndDiffTests(unittest.TestCase):
         self.assertIn("## Current Conclusion", markdown)
         self.assertIn("## Decision Guidance", markdown)
         self.assertIn("## Variables / Evidence Table", markdown)
-        self.assertIn("Verification: OPEN", markdown)
+        self.assertIn(
+            "Verification: PASS: Deterministic domain checks passed", markdown
+        )
         self.assertIn("`value_of_time` | unknown", markdown)
 
     def test_car_report_guidance_prioritizes_decision_defining_unknown(self):

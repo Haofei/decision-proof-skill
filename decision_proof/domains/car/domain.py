@@ -12,11 +12,18 @@ from decision_proof.core.next_questions import (
     package_questions,
     question_item,
 )
+from decision_proof.core.verifier import (
+    goal_hard_failed,
+    hard_failed_any,
+    has_open_goal,
+    load_ir,
+    non_negative_or_none,
+    run_checks,
+)
 
 from . import evaluator as evaluate_mod
 from . import options as options_mod
 from . import sensitivity as sensitivity_mod
-from . import verifier as verifier_mod
 
 MANIFEST = domain_manifest(Path(__file__).with_name("manifest.json"))
 
@@ -83,7 +90,8 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
 
 
 def verify(ir_path: Path) -> dict[str, Any]:
-    ir = verifier_mod.load_json(ir_path)
+    """Deterministic domain invariants for a single-decision car IR."""
+    ir = load_ir(ir_path)
     if is_option_comparison(ir):
         return {
             "ok": False,
@@ -91,10 +99,44 @@ def verify(ir_path: Path) -> dict[str, Any]:
             "error": "verifier not implemented for car option comparison",
         }
 
-    try:
-        return verifier_mod.verify_ir(ir_path)
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "proof_checked": False, "error": str(exc)}
+    evaluation = evaluate(ir)
+    status = evaluation["recommendation"]["status"]
+    goals = evaluation["proof_state"]["goals"]
+    derived = evaluation["derived_values"]
+    positive = status in {"recommend", "lean_yes"}
+
+    checks = [
+        (
+            "cash_safety_hard_fail_blocks_positive",
+            not (goal_hard_failed(goals, "cash_safety") and positive),
+            "a hard cash-safety failure cannot coexist with recommend/lean_yes",
+        ),
+        (
+            "affordability_hard_fail_blocks_positive",
+            not (goal_hard_failed(goals, "income_affordability") and positive),
+            "a hard affordability failure cannot coexist with recommend/lean_yes",
+        ),
+        (
+            "do_not_recommend_requires_hard_fail",
+            status != "do_not_recommend" or hard_failed_any(goals),
+            "do_not_recommend must be backed by a hard-severity failed goal",
+        ),
+        (
+            "insufficient_evidence_requires_open_goal",
+            status != "insufficient_evidence" or has_open_goal(goals),
+            "insufficient_evidence requires at least one open proof goal",
+        ),
+        (
+            "car_cost_income_ratio_non_negative",
+            non_negative_or_none(derived.get("car_cost_income_ratio")),
+            "car_cost_income_ratio must be non-negative or null",
+        ),
+    ]
+    return run_checks(
+        checks,
+        predicate="CarDeterministicInvariants",
+        recommendation_status=status,
+    )
 
 
 def build_comparison_guidance(run: dict[str, Any]) -> dict[str, str]:

@@ -1,6 +1,6 @@
 # Proof State
 
-Proof state makes a messy decision feel like a Lean goal list. It does not prove real-world facts. It tracks whether the current premises are enough to support the target claim.
+Proof state makes a messy decision feel like a proof goal list. It does not prove real-world facts. It tracks whether the current premises are enough to support the target claim.
 
 ## Goal Statuses
 
