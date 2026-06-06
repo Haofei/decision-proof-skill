@@ -177,6 +177,11 @@ def numeric_ir_value(
     return numeric_mapping_value(ir.get("variables", {}), name, default)
 
 
+def round_or_none(value: Any, ndigits: int = 2) -> float | None:
+    """Round numbers, pass ``None`` through. Keeps derived-value dicts readable."""
+    return round(value, ndigits) if isinstance(value, (int, float)) else None
+
+
 def applied_defaults(ir: dict[str, Any], defaults: dict[str, Any]) -> dict[str, float]:
     """Defaults that silently shaped the result because the IR omitted them.
 

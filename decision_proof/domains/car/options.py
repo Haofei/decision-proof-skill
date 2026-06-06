@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 from typing import Any
@@ -12,6 +11,7 @@ from decision_proof.core.domain_shared import (
     goal,
     has_failed_goal,
     recommendation_status,
+    round_or_none,
 )
 
 DEFAULTS = {
@@ -322,24 +322,12 @@ def evaluate_option(ir: dict[str, Any], option: dict[str, Any]) -> dict[str, Any
         "evidence_quality": option_evidence,
         "main_risk": main_risk,
         "derived_values": {
-            "monthly_cost": round(monthly_cost, 2)
-            if monthly_cost is not None
-            else None,
-            "incremental_cost": round(incremental_cost, 2)
-            if incremental_cost is not None
-            else None,
-            "monthly_time_saved_hours": round(monthly_time_saved_hours, 2)
-            if monthly_time_saved_hours is not None
-            else None,
-            "monthly_time_value": round(monthly_time_value, 2)
-            if monthly_time_value is not None
-            else None,
-            "net_monthly_value": round(net_monthly_value, 2)
-            if net_monthly_value is not None
-            else None,
-            "cost_income_ratio": round(cost_income_ratio, 4)
-            if cost_income_ratio is not None
-            else None,
+            "monthly_cost": round_or_none(monthly_cost),
+            "incremental_cost": round_or_none(incremental_cost),
+            "monthly_time_saved_hours": round_or_none(monthly_time_saved_hours),
+            "monthly_time_value": round_or_none(monthly_time_value),
+            "net_monthly_value": round_or_none(net_monthly_value),
+            "cost_income_ratio": round_or_none(cost_income_ratio, 4),
         },
         "proof_state": {
             "target_claim": f"{option_id}_is_reasonable",
@@ -379,18 +367,3 @@ def evaluate_options(ir: dict[str, Any]) -> dict[str, Any]:
             else "No actionable option available.",
         },
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Evaluate and rank multiple car options."
-    )
-    parser.add_argument("ir_json", type=Path)
-    args = parser.parse_args()
-
-    print(json.dumps(evaluate_options(load_json(args.ir_json)), indent=2))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

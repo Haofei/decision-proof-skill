@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -16,11 +15,20 @@ from decision_proof.core.domain_shared import (
     numeric_ir_value,
     raw_variable_value,
     recommendation_status,
+    round_or_none,
     text_variable_value,
     threshold_goal,
 )
 from decision_proof.core.guidance import manifest_guidance
 from decision_proof.core.next_questions import manifest_next_questions
+from decision_proof.core.verifier import (
+    goal_hard_failed,
+    hard_failed_any,
+    has_open_goal,
+    load_ir,
+    non_negative_or_none,
+    run_checks,
+)
 
 DEFAULTS = {
     "target_payback_years_low_risk": 3.0,
@@ -249,20 +257,12 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
     return {
         "assumptions_used": assumptions_used(ir),
         "derived_values": {
-            "cash_cost": round(cash_cost, 2) if cash_cost is not None else None,
-            "opportunity_cost": round(opportunity_cost, 2)
-            if opportunity_cost is not None
-            else None,
-            "total_opportunity_cost": round(total_opportunity_cost, 2)
-            if total_opportunity_cost is not None
-            else None,
-            "annual_salary_premium": round(annual_salary_premium, 2)
-            if annual_salary_premium is not None
-            else None,
-            "payback_years_after_graduation": round(payback_years, 2)
-            if payback_years is not None
-            else None,
-            "funding_gap": round(funding_gap, 2) if funding_gap is not None else None,
+            "cash_cost": round_or_none(cash_cost),
+            "opportunity_cost": round_or_none(opportunity_cost),
+            "total_opportunity_cost": round_or_none(total_opportunity_cost),
+            "annual_salary_premium": round_or_none(annual_salary_premium),
+            "payback_years_after_graduation": round_or_none(payback_years),
+            "funding_gap": round_or_none(funding_gap),
         },
         "proof_state": {
             "target_claim": "graduate_school_better_than_direct_work",
@@ -338,32 +338,20 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "current": {
-            "target_payback_years": round(target_payback_years, 2)
-            if target_payback_years is not None
-            else None,
-            "current_payback_years": round(current_payback_years, 2)
-            if current_payback_years is not None
-            else None,
-            "current_salary_premium": round(current_salary_premium, 2)
-            if current_salary_premium is not None
-            else None,
-            "funding_gap": round(funding_gap, 2) if funding_gap is not None else None,
+            "target_payback_years": round_or_none(target_payback_years),
+            "current_payback_years": round_or_none(current_payback_years),
+            "current_salary_premium": round_or_none(current_salary_premium),
+            "funding_gap": round_or_none(funding_gap),
             "unknown_variables": sorted(set(unknowns)),
         },
         "flip_conditions": {
-            "break_even_salary_premium_for_risk_window": round(
-                break_even_salary_premium, 2
-            )
-            if break_even_salary_premium is not None
-            else None,
-            "break_even_post_grad_salary_for_risk_window": round(
-                break_even_post_grad_salary, 2
-            )
-            if break_even_post_grad_salary is not None
-            else None,
-            "required_savings_without_loan": round(cash_cost, 2)
-            if cash_cost is not None
-            else None,
+            "break_even_salary_premium_for_risk_window": round_or_none(
+                break_even_salary_premium
+            ),
+            "break_even_post_grad_salary_for_risk_window": round_or_none(
+                break_even_post_grad_salary
+            ),
+            "required_savings_without_loan": round_or_none(cash_cost),
         },
     }
 
@@ -387,7 +375,7 @@ def assumptions_used(ir: dict[str, Any]) -> dict[str, float]:
 
 def verify(ir_path: Path) -> dict[str, Any]:
     """Deterministic domain invariants (no Lean backend yet)."""
-    ir = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+    ir = load_ir(ir_path)
     evaluation = evaluate(ir)
     sensitivity = thresholds(ir)
 
@@ -395,17 +383,7 @@ def verify(ir_path: Path) -> dict[str, Any]:
     goals = evaluation["proof_state"]["goals"]
     derived = evaluation["derived_values"]
     flip = sensitivity["flip_conditions"]
-
-    goal_map = {item["claim"]: item for item in goals}
     positive = status in {"recommend", "lean_yes"}
-    open_goals = [item for item in goals if item["status"] == "open"]
-    hard_fail_any = any(
-        item["status"] == "failed" and item.get("severity") == "hard" for item in goals
-    )
-
-    def hard_fail(claim: str) -> bool:
-        item = goal_map.get(claim, {})
-        return item.get("status") == "failed" and item.get("severity") == "hard"
 
     payback = derived.get("payback_years_after_graduation")
     break_even_salary = flip.get("break_even_post_grad_salary_for_risk_window")
@@ -413,49 +391,40 @@ def verify(ir_path: Path) -> dict[str, Any]:
     checks = [
         (
             "salary_premium_hard_fail_blocks_positive",
-            not (hard_fail("salary_premium_positive") and positive),
+            not (goal_hard_failed(goals, "salary_premium_positive") and positive),
             "a negative salary premium cannot coexist with recommend/lean_yes",
         ),
         (
             "funding_hard_fail_blocks_positive",
-            not (hard_fail("funding_path_clear") and positive),
+            not (goal_hard_failed(goals, "funding_path_clear") and positive),
             "a hard funding failure cannot coexist with recommend/lean_yes",
         ),
         (
             "do_not_recommend_requires_hard_fail",
-            status != "do_not_recommend" or hard_fail_any,
+            status != "do_not_recommend" or hard_failed_any(goals),
             "do_not_recommend must be backed by a hard-severity failed goal",
         ),
         (
             "insufficient_evidence_requires_open_goal",
-            status != "insufficient_evidence" or bool(open_goals),
+            status != "insufficient_evidence" or has_open_goal(goals),
             "insufficient_evidence requires at least one open proof goal",
         ),
         (
             "payback_years_non_negative",
-            payback is None or payback >= 0,
+            non_negative_or_none(payback),
             "payback years must be non-negative or null",
         ),
         (
             "break_even_salary_non_negative",
-            break_even_salary is None or break_even_salary >= 0,
+            non_negative_or_none(break_even_salary),
             "break-even post-grad salary must be non-negative or null",
         ),
     ]
-
-    passed = [name for name, ok, _ in checks if ok]
-    failed = [
-        {"id": name, "message": message} for name, ok, message in checks if not ok
-    ]
-
-    return {
-        "ok": not failed,
-        "proof_checked": not failed,
-        "proved_predicate": "GraduateSchoolDeterministicInvariants",
-        "recommendation_status": status,
-        "passed_checks": passed,
-        "failed_checks": failed,
-    }
+    return run_checks(
+        checks,
+        predicate="GraduateSchoolDeterministicInvariants",
+        recommendation_status=status,
+    )
 
 
 def guidance(run: dict[str, Any]) -> dict[str, str]:

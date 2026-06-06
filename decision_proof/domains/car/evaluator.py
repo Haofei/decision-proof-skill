@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 from typing import Any
@@ -13,6 +12,7 @@ from decision_proof.core.domain_shared import (
     goal,
     has_failed_goal,
     recommendation_status,
+    round_or_none,
     threshold_goal,
 )
 
@@ -310,27 +310,15 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
     return {
         "assumptions_used": applied_defaults(ir, DEFAULTS),
         "derived_values": {
-            "monthly_commute_time_saved_hours": round(commute_time_saved, 2)
-            if commute_time_saved is not None
-            else None,
-            "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2)
-            if non_commute_time_saved is not None
-            else None,
-            "monthly_time_saved_hours": round(total_time_saved, 2)
-            if total_time_saved is not None
-            else None,
-            "monthly_time_value": round(monthly_time_value, 2)
-            if monthly_time_value is not None
-            else None,
-            "incremental_car_cost": round(incremental_car_cost, 2)
-            if incremental_car_cost is not None
-            else None,
-            "net_monthly_value": round(net_monthly_value, 2)
-            if net_monthly_value is not None
-            else None,
-            "car_cost_income_ratio": round(car_cost_income_ratio, 4)
-            if car_cost_income_ratio is not None
-            else None,
+            "monthly_commute_time_saved_hours": round_or_none(commute_time_saved),
+            "monthly_non_commute_time_saved_hours": round_or_none(
+                non_commute_time_saved
+            ),
+            "monthly_time_saved_hours": round_or_none(total_time_saved),
+            "monthly_time_value": round_or_none(monthly_time_value),
+            "incremental_car_cost": round_or_none(incremental_car_cost),
+            "net_monthly_value": round_or_none(net_monthly_value),
+            "car_cost_income_ratio": round_or_none(car_cost_income_ratio, 4),
         },
         "proof_state": {
             "target_claim": "buy_car_better_than_no_car",
@@ -348,19 +336,3 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
             ],
         },
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Evaluate a car Decision IR JSON file."
-    )
-    parser.add_argument("ir_json", type=Path)
-    args = parser.parse_args()
-
-    result = evaluate(load_json(args.ir_json))
-    print(json.dumps(result, indent=2))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

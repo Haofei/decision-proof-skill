@@ -16,7 +16,6 @@ than being silently defaulted.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -28,10 +27,19 @@ from decision_proof.core.domain_shared import (
     has_failed_goal,
     numeric_ir_value,
     recommendation_status,
+    round_or_none,
     threshold_goal,
 )
 from decision_proof.core.guidance import manifest_guidance
 from decision_proof.core.next_questions import manifest_next_questions
+from decision_proof.core.verifier import (
+    goal_hard_failed,
+    hard_failed_any,
+    has_open_goal,
+    load_ir,
+    non_negative_or_none,
+    run_checks,
+)
 
 MANIFEST = domain_manifest(Path(__file__).with_name("manifest.json"))
 
@@ -385,21 +393,17 @@ def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
     return {
         "assumptions_used": assumptions_used(ir),
         "derived_values": {
-            "down_payment_cash_needed": round(model["down_payment_cash_needed"], 2)
-            if model["down_payment_cash_needed"] is not None
-            else None,
-            "monthly_mortgage_payment": round(model["monthly_mortgage_payment"], 2)
-            if model["monthly_mortgage_payment"] is not None
-            else None,
-            "monthly_ownership_cost": round(model["monthly_ownership_cost"], 2)
-            if model["monthly_ownership_cost"] is not None
-            else None,
-            "housing_cost_income_ratio": round(model["housing_cost_income_ratio"], 4)
-            if model["housing_cost_income_ratio"] is not None
-            else None,
-            "break_even_years": round(break_even, 2)
-            if break_even is not None
-            else None,
+            "down_payment_cash_needed": round_or_none(
+                model["down_payment_cash_needed"]
+            ),
+            "monthly_mortgage_payment": round_or_none(
+                model["monthly_mortgage_payment"]
+            ),
+            "monthly_ownership_cost": round_or_none(model["monthly_ownership_cost"]),
+            "housing_cost_income_ratio": round_or_none(
+                model["housing_cost_income_ratio"], 4
+            ),
+            "break_even_years": round_or_none(break_even),
         },
         "proof_state": {
             "target_claim": "buying_beats_renting_over_horizon",
@@ -450,27 +454,19 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "current": {
-            "break_even_years": round(break_even, 2)
-            if break_even is not None
-            else None,
+            "break_even_years": round_or_none(break_even),
             "expected_years_in_home": model["horizon"],
             "home_price": model["price"],
             "monthly_rent": model["rent0"],
-            "monthly_ownership_cost": round(model["monthly_ownership_cost"], 2)
-            if model["monthly_ownership_cost"] is not None
-            else None,
-            "housing_cost_income_ratio": round(model["housing_cost_income_ratio"], 4)
-            if model["housing_cost_income_ratio"] is not None
-            else None,
+            "monthly_ownership_cost": round_or_none(model["monthly_ownership_cost"]),
+            "housing_cost_income_ratio": round_or_none(
+                model["housing_cost_income_ratio"], 4
+            ),
             "unknown_variables": sorted(set(unknowns)),
         },
         "flip_conditions": {
-            "must_stay_years_to_break_even": round(break_even, 2)
-            if break_even is not None
-            else None,
-            "max_home_price_within_budget": round(max_home_price, 2)
-            if max_home_price is not None
-            else None,
+            "must_stay_years_to_break_even": round_or_none(break_even),
+            "max_home_price_within_budget": round_or_none(max_home_price),
         },
     }
 
@@ -487,7 +483,7 @@ def verify(ir_path: Path) -> dict[str, Any]:
     consistent with the proof state and that numeric outputs disclose the
     priors that produced them.
     """
-    ir = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+    ir = load_ir(ir_path)
     evaluation = evaluate(ir)
     sensitivity = thresholds(ir)
 
@@ -496,17 +492,7 @@ def verify(ir_path: Path) -> dict[str, Any]:
     derived = evaluation["derived_values"]
     flip = sensitivity["flip_conditions"]
     used = evaluation.get("assumptions_used", {})
-
-    goal_map = {item["claim"]: item for item in goals}
     positive = status in {"recommend", "lean_yes"}
-    open_goals = [item for item in goals if item["status"] == "open"]
-    hard_fail_any = any(
-        item["status"] == "failed" and item.get("severity") == "hard" for item in goals
-    )
-
-    def hard_fail(claim: str) -> bool:
-        item = goal_map.get(claim, {})
-        return item.get("status") == "failed" and item.get("severity") == "hard"
 
     break_even = derived.get("break_even_years")
     max_home_price = flip.get("max_home_price_within_budget")
@@ -514,32 +500,32 @@ def verify(ir_path: Path) -> dict[str, Any]:
     checks = [
         (
             "cash_safety_hard_fail_blocks_positive",
-            not (hard_fail("cash_safety") and positive),
+            not (goal_hard_failed(goals, "cash_safety") and positive),
             "a hard cash-safety failure cannot coexist with recommend/lean_yes",
         ),
         (
             "affordability_hard_fail_blocks_positive",
-            not (hard_fail("affordability") and positive),
+            not (goal_hard_failed(goals, "affordability") and positive),
             "a hard affordability failure cannot coexist with recommend/lean_yes",
         ),
         (
             "do_not_recommend_requires_hard_fail",
-            status != "do_not_recommend" or hard_fail_any,
+            status != "do_not_recommend" or hard_failed_any(goals),
             "do_not_recommend must be backed by a hard-severity failed goal",
         ),
         (
             "insufficient_evidence_requires_open_goal",
-            status != "insufficient_evidence" or bool(open_goals),
+            status != "insufficient_evidence" or has_open_goal(goals),
             "insufficient_evidence requires at least one open proof goal",
         ),
         (
             "break_even_years_non_negative",
-            break_even is None or break_even >= 0,
+            non_negative_or_none(break_even),
             "break_even_years must be non-negative or null",
         ),
         (
             "max_home_price_within_budget_non_negative",
-            max_home_price is None or max_home_price >= 0,
+            non_negative_or_none(max_home_price),
             "max_home_price_within_budget must be non-negative or null",
         ),
         (
@@ -548,20 +534,11 @@ def verify(ir_path: Path) -> dict[str, Any]:
             "a numeric break-even horizon must disclose the priors that produced it",
         ),
     ]
-
-    passed = [name for name, ok, _ in checks if ok]
-    failed = [
-        {"id": name, "message": message} for name, ok, message in checks if not ok
-    ]
-
-    return {
-        "ok": not failed,
-        "proof_checked": not failed,
-        "proved_predicate": "RentVsBuyDeterministicInvariants",
-        "recommendation_status": status,
-        "passed_checks": passed,
-        "failed_checks": failed,
-    }
+    return run_checks(
+        checks,
+        predicate="RentVsBuyDeterministicInvariants",
+        recommendation_status=status,
+    )
 
 
 def guidance(run: dict[str, Any]) -> dict[str, str]:

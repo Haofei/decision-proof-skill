@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 from typing import Any
+
+from decision_proof.core.domain_shared import round_or_none
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -108,52 +109,21 @@ def thresholds(ir: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "current": {
-            "known_monthly_time_saved_hours": round(known_time_saved, 2),
-            "monthly_commute_time_saved_hours": round(commute_time_saved, 2)
-            if commute_time_saved is not None
-            else None,
-            "monthly_non_commute_time_saved_hours": round(non_commute_time_saved, 2)
-            if non_commute_time_saved is not None
-            else None,
-            "monthly_car_cost": round(monthly_car_cost, 2)
-            if monthly_car_cost is not None
-            else None,
-            "incremental_cost": round(incremental_cost, 2)
-            if incremental_cost is not None
-            else None,
-            "value_of_time": round(value_of_time, 2)
-            if value_of_time is not None
-            else None,
-            "comfort_plus_optionality": round(non_time_value, 2),
+            "known_monthly_time_saved_hours": round_or_none(known_time_saved),
+            "monthly_commute_time_saved_hours": round_or_none(commute_time_saved),
+            "monthly_non_commute_time_saved_hours": round_or_none(
+                non_commute_time_saved
+            ),
+            "monthly_car_cost": round_or_none(monthly_car_cost),
+            "incremental_cost": round_or_none(incremental_cost),
+            "value_of_time": round_or_none(value_of_time),
+            "comfort_plus_optionality": round_or_none(non_time_value),
             "unknown_variables": sorted(set(unknowns)),
         },
         "flip_conditions": {
-            "break_even_monthly_car_cost": round(break_even_monthly_car_cost, 2)
-            if break_even_monthly_car_cost is not None
-            else None,
-            "break_even_value_of_time": round(break_even_value_of_time, 2)
-            if break_even_value_of_time is not None
-            else None,
-            "break_even_time_saved_hours": round(break_even_time_saved_hours, 2)
-            if break_even_time_saved_hours is not None
-            else None,
-            "required_lifestyle_premium": round(required_lifestyle_premium, 2)
-            if required_lifestyle_premium is not None
-            else None,
+            "break_even_monthly_car_cost": round_or_none(break_even_monthly_car_cost),
+            "break_even_value_of_time": round_or_none(break_even_value_of_time),
+            "break_even_time_saved_hours": round_or_none(break_even_time_saved_hours),
+            "required_lifestyle_premium": round_or_none(required_lifestyle_premium),
         },
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Estimate conclusion-flipping thresholds."
-    )
-    parser.add_argument("ir_json", type=Path)
-    args = parser.parse_args()
-
-    print(json.dumps(thresholds(load_json(args.ir_json)), indent=2))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
