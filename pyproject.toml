@@ -14,12 +14,20 @@ dependencies = []
 decision-proof = "decision_proof.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["core*", "decision_proof*", "domains*", "schemas*", "scripts*"]
+include = ["decision_proof*", "schemas*"]
 
 [tool.setuptools.package-data]
 schemas = ["*.json"]
-"domains.car" = ["manifest.json", "model.yaml"]
-"domains.graduate_school" = ["manifest.json", "model.yaml"]
+"decision_proof.domains.car" = ["manifest.json", "questions.md"]
+"decision_proof.domains.graduate_school" = ["manifest.json", "questions.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+src = ["decision_proof", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]

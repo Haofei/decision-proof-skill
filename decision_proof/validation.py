@@ -23,7 +23,9 @@ def validate(ir: dict) -> list[str]:
         if not isinstance(variable, dict):
             continue
         if variable.get("value") is None and variable.get("status") != "unknown":
-            errors.append(f"variables.{name}.status must be 'unknown' when value is null")
+            errors.append(
+                f"variables.{name}.status must be 'unknown' when value is null"
+            )
 
     rules = ir.get("rules", [])
     if rules and not isinstance(rules, list):
@@ -36,7 +38,9 @@ def validate(ir: dict) -> list[str]:
                 continue
             for dep in rule.get("dependencies", []):
                 if dep not in variable_names:
-                    errors.append(f"rules[{index}] dependency not found in variables: {dep}")
+                    errors.append(
+                        f"rules[{index}] dependency not found in variables: {dep}"
+                    )
 
     errors.extend(validation_errors(ir))
     return sorted(set(errors))

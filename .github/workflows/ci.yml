@@ -12,21 +12,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install tooling
+        run: python -m pip install --upgrade pip ruff
+      - name: Ruff format
+        run: python -m ruff format --check decision_proof tests
+      - name: Ruff lint
+        run: python -m ruff check decision_proof tests
       - name: Run golden tests
         run: python -m unittest discover -s tests
       - name: Validate example IR
-        run: python scripts/validate_ir.py examples/car-decision.json
+        run: python -m decision_proof.cli validate examples/car-decision.json
       - name: Validate graduate-school IR
-        run: python scripts/validate_ir.py examples/graduate-school-decision.json
+        run: python -m decision_proof.cli validate examples/graduate-school-decision.json
       - name: Evaluate generic runtime entrypoint
         run: |
-          python scripts/evaluate_decision.py examples/car-decision.json
-          python scripts/evaluate_decision.py examples/graduate-school-decision.json
+          python -m decision_proof.cli evaluate examples/car-decision.json
+          python -m decision_proof.cli evaluate examples/graduate-school-decision.json
       - name: Generate report and diff smoke test
         run: |
-          python scripts/generate_report.py examples/car-decision.json --run-id run_unknown --json-out /tmp/run_unknown.json --md-out /tmp/run_unknown.md
-          python scripts/generate_report.py examples/car-decision-value-time-100.json --run-id run_value_time_100 --json-out /tmp/run_value_time_100.json --md-out /tmp/run_value_time_100.md
-          python scripts/generate_report.py examples/graduate-school-decision.json --run-id run_grad --json-out /tmp/run_grad.json --md-out /tmp/run_grad.md
-          python scripts/diff_runs.py /tmp/run_unknown.json /tmp/run_value_time_100.json
+          python -m decision_proof.cli report examples/car-decision.json --run-id run_unknown --json-out /tmp/run_unknown.json --md-out /tmp/run_unknown.md
+          python -m decision_proof.cli report examples/car-decision-value-time-100.json --run-id run_value_time_100 --json-out /tmp/run_value_time_100.json --md-out /tmp/run_value_time_100.md
+          python -m decision_proof.cli report examples/graduate-school-decision.json --run-id run_grad --json-out /tmp/run_grad.json --md-out /tmp/run_grad.md
+          python -m decision_proof.cli diff /tmp/run_unknown.json /tmp/run_value_time_100.json
       - name: Evaluate multi-option car scenario
-        run: python scripts/evaluate_car_options.py examples/car-options-comparison.json
+        run: python -m decision_proof.cli evaluate examples/car-options-comparison.json

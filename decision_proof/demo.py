@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from decision_proof.next_questions import next_questions
 from decision_proof.report import load_json, make_run, render_markdown
-
+from decision_proof.runtime import next_questions
 
 ROOT = Path(__file__).resolve().parents[1]
 

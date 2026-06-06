@@ -1,28 +1,16 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from decision_proof.domains.car import evaluator as evaluate_mod
+from decision_proof.domains.car import verifier as verifier_mod
+from decision_proof.validation import validate as validate_ir
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-evaluate_mod = load_module("evaluate_car_decision", ROOT / "scripts" / "evaluate_car_decision.py")
-validate_mod = load_module("validate_ir", ROOT / "scripts" / "validate_ir.py")
 
 
 def base_ir() -> dict:
@@ -37,15 +25,60 @@ def base_ir() -> dict:
             {"id": "no_car", "label": "Do not buy a car"},
         ],
         "variables": {
-            "commute_days_per_month": {"value": 20, "unit": "days/month", "confidence": 0.8, "source": "measured"},
-            "current_minutes_each_way": {"value": 60, "unit": "minutes", "confidence": 0.8, "source": "measured"},
-            "car_minutes_each_way": {"value": 30, "unit": "minutes", "confidence": 0.8, "source": "measured"},
-            "monthly_car_cost": {"value": 500, "unit": "USD/month", "confidence": 0.8, "source": "quoted"},
-            "current_transport_monthly_cost": {"value": 100, "unit": "USD/month", "confidence": 0.8, "source": "measured"},
-            "monthly_after_tax_income": {"value": 5000, "unit": "USD/month", "confidence": 0.8, "source": "measured"},
-            "emergency_fund_months_after": {"value": 8, "unit": "months", "confidence": 0.8, "source": "measured"},
-            "value_of_time": {"value": 50, "unit": "USD/hour", "confidence": 0.8, "source": "estimated"},
-            "expected_need_stability_months": {"value": 24, "unit": "months", "confidence": 0.8, "source": "estimated"},
+            "commute_days_per_month": {
+                "value": 20,
+                "unit": "days/month",
+                "confidence": 0.8,
+                "source": "measured",
+            },
+            "current_minutes_each_way": {
+                "value": 60,
+                "unit": "minutes",
+                "confidence": 0.8,
+                "source": "measured",
+            },
+            "car_minutes_each_way": {
+                "value": 30,
+                "unit": "minutes",
+                "confidence": 0.8,
+                "source": "measured",
+            },
+            "monthly_car_cost": {
+                "value": 500,
+                "unit": "USD/month",
+                "confidence": 0.8,
+                "source": "quoted",
+            },
+            "current_transport_monthly_cost": {
+                "value": 100,
+                "unit": "USD/month",
+                "confidence": 0.8,
+                "source": "measured",
+            },
+            "monthly_after_tax_income": {
+                "value": 5000,
+                "unit": "USD/month",
+                "confidence": 0.8,
+                "source": "measured",
+            },
+            "emergency_fund_months_after": {
+                "value": 8,
+                "unit": "months",
+                "confidence": 0.8,
+                "source": "measured",
+            },
+            "value_of_time": {
+                "value": 50,
+                "unit": "USD/hour",
+                "confidence": 0.8,
+                "source": "estimated",
+            },
+            "expected_need_stability_months": {
+                "value": 24,
+                "unit": "months",
+                "confidence": 0.8,
+                "source": "estimated",
+            },
         },
     }
 
@@ -68,7 +101,11 @@ class CarDecisionTests(unittest.TestCase):
         result = evaluate_mod.evaluate(ir)
 
         self.assertEqual(result["recommendation"]["status"], "insufficient_evidence")
-        income_goal = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "income_affordability")
+        income_goal = next(
+            goal
+            for goal in result["proof_state"]["goals"]
+            if goal["claim"] == "income_affordability"
+        )
         self.assertEqual(income_goal["status"], "open")
 
     def test_net_positive_strong_evidence_is_recommend(self):
@@ -97,7 +134,11 @@ class CarDecisionTests(unittest.TestCase):
 
         self.assertEqual(result["recommendation"]["status"], "insufficient_evidence")
         self.assertIsNone(result["derived_values"]["monthly_time_value"])
-        benefit_goal = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "benefit_exceeds_incremental_cost")
+        benefit_goal = next(
+            goal
+            for goal in result["proof_state"]["goals"]
+            if goal["claim"] == "benefit_exceeds_incremental_cost"
+        )
         self.assertEqual(benefit_goal["status"], "open")
         self.assertIn("value_of_time", benefit_goal["dependencies"])
 
@@ -112,7 +153,11 @@ class CarDecisionTests(unittest.TestCase):
         self.assertIsNone(result["derived_values"]["monthly_commute_time_saved_hours"])
         self.assertIsNone(result["derived_values"]["net_monthly_value"])
         self.assertEqual(result["recommendation"]["status"], "insufficient_evidence")
-        benefit_goal = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "benefit_exceeds_incremental_cost")
+        benefit_goal = next(
+            goal
+            for goal in result["proof_state"]["goals"]
+            if goal["claim"] == "benefit_exceeds_incremental_cost"
+        )
         self.assertEqual(benefit_goal["status"], "open")
         self.assertIn("commute_days_per_month", benefit_goal["dependencies"])
 
@@ -136,7 +181,11 @@ class CarDecisionTests(unittest.TestCase):
         result = evaluate_mod.evaluate(ir)
 
         self.assertNotEqual(result["recommendation"]["status"], "do_not_recommend")
-        affordability = next(goal for goal in result["proof_state"]["goals"] if goal["claim"] == "income_affordability")
+        affordability = next(
+            goal
+            for goal in result["proof_state"]["goals"]
+            if goal["claim"] == "income_affordability"
+        )
         self.assertEqual(affordability["status"], "failed")
         self.assertEqual(affordability["severity"], "warning")
         self.assertIn("20.0%", affordability["reason"])
@@ -147,13 +196,13 @@ class CarDecisionTests(unittest.TestCase):
         ir["variables"]["value_of_time"]["status"] = "unknown"
         ir["variables"]["value_of_time"]["source"] = "unknown"
 
-        self.assertEqual(validate_mod.validate(ir), [])
+        self.assertEqual(validate_ir(ir), [])
 
     def test_validator_rejects_null_without_unknown_status(self):
         ir = base_ir()
         ir["variables"]["value_of_time"]["value"] = None
 
-        errors = validate_mod.validate(ir)
+        errors = validate_ir(ir)
 
         self.assertTrue(any("status must be 'unknown'" in error for error in errors))
 
@@ -161,9 +210,14 @@ class CarDecisionTests(unittest.TestCase):
         ir = base_ir()
         del ir["variables"]["monthly_after_tax_income"]
 
-        errors = validate_mod.validate(ir)
+        errors = validate_ir(ir)
 
-        self.assertTrue(any("missing required variables for domain 'car'" in error for error in errors))
+        self.assertTrue(
+            any(
+                "missing required variables for domain 'car'" in error
+                for error in errors
+            )
+        )
         self.assertTrue(any("monthly_after_tax_income" in error for error in errors))
 
     def test_lean_generator_refuses_unknown_numeric_inputs(self):
@@ -177,7 +231,7 @@ class CarDecisionTests(unittest.TestCase):
             path = handle.name
 
         proc = subprocess.run(
-            ["python3", str(ROOT / "scripts" / "generate_lean_car_proof.py"), path],
+            ["python3", "-m", verifier_mod.__name__, path],
             text=True,
             capture_output=True,
             check=False,

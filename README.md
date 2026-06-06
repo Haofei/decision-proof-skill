@@ -45,11 +45,11 @@ See `references/product-architecture.md` for the longer-term domain-pack, API, a
 The repository now routes evaluation through a small domain runtime:
 
 ```text
-core/domain_runtime.py
-  resolves decision.type via domains/*/model.yaml
+decision_proof/core/domain_runtime.py
+  resolves decision.type via decision_proof/domains/*/manifest.json
 
-scripts/evaluate_decision.py
-  evaluates any supported domain through that runtime
+decision_proof/runtime.py
+  is the public Python runtime surface for evaluation, thresholds, guidance, verification, and next questions
 ```
 
 The first implemented domain is personal car decisions. It now has two evaluator levels:
@@ -122,58 +122,39 @@ python3 -m decision_proof.cli verify examples/car-decision.json
 python3 -m decision_proof.cli report examples/car-options-comparison.json --json-out /tmp/options_run.json --md-out /tmp/options_report.md
 ```
 
-Direct script wrappers still work, but they now delegate into the domain packs and the shared runtime:
-
 Validate a Decision IR JSON file:
 
 ```bash
-python3 scripts/validate_ir.py examples/car-decision.json
-python3 scripts/validate_ir.py examples/graduate-school-decision.json
+python3 -m decision_proof.cli validate examples/car-decision.json
+python3 -m decision_proof.cli validate examples/graduate-school-decision.json
 ```
 
 Evaluate any supported decision through the domain runtime:
 
 ```bash
-python3 scripts/evaluate_decision.py examples/car-decision.json
-python3 scripts/evaluate_decision.py examples/graduate-school-decision.json
-```
-
-Evaluate a car decision:
-
-```bash
-python3 scripts/evaluate_car_decision.py examples/car-decision.json
-```
-
-Compare multiple car options:
-
-```bash
-python3 scripts/evaluate_car_options.py examples/car-options-comparison.json
-```
-
-Compute sensitivity thresholds:
-
-```bash
-python3 scripts/sensitivity.py examples/car-decision.json
+python3 -m decision_proof.cli evaluate examples/car-decision.json
+python3 -m decision_proof.cli evaluate examples/graduate-school-decision.json
+python3 -m decision_proof.cli evaluate examples/car-options-comparison.json
 ```
 
 Generate a Decision Report:
 
 ```bash
-python3 scripts/generate_report.py examples/car-decision.json --json-out /tmp/run_unknown.json --md-out /tmp/report.md
-python3 scripts/generate_report.py examples/graduate-school-decision.json --json-out /tmp/grad_run.json --md-out /tmp/grad_report.md
+python3 -m decision_proof.cli report examples/car-decision.json --json-out /tmp/run_unknown.json --md-out /tmp/report.md
+python3 -m decision_proof.cli report examples/graduate-school-decision.json --json-out /tmp/grad_run.json --md-out /tmp/grad_report.md
 ```
 
 Compare two decision runs:
 
 ```bash
-python3 scripts/generate_report.py examples/car-decision-value-time-100.json --json-out /tmp/run_value_time_100.json
-python3 scripts/diff_runs.py /tmp/run_unknown.json /tmp/run_value_time_100.json --md
+python3 -m decision_proof.cli report examples/car-decision-value-time-100.json --json-out /tmp/run_value_time_100.json
+python3 -m decision_proof.cli diff /tmp/run_unknown.json /tmp/run_value_time_100.json --md
 ```
 
 Generate and check a Lean proof:
 
 ```bash
-python3 scripts/generate_lean_car_proof.py examples/car-decision-lean-yes.json --out /tmp/CarDecisionProof.lean
+python3 -m decision_proof.domains.car.verifier examples/car-decision-lean-yes.json --out /tmp/CarDecisionProof.lean
 ```
 
 The Lean backend checks that the recommendation predicate follows from the concrete numbers and rules. It does not prove the real-world estimates are true.
@@ -189,16 +170,18 @@ python3 -m unittest discover -s tests
 Supported domain packs currently live under:
 
 ```text
-domains/
+decision_proof/domains/
   car/
-    model.yaml
+    manifest.json
+    questions.md
     domain.py
   graduate_school/
-    model.yaml
+    manifest.json
+    questions.md
     domain.py
 ```
 
-`model.yaml` now drives runtime routing metadata and domain-level validation for `scripts/validate_ir.py`.
+`manifest.json` now drives runtime routing metadata and domain-level validation for the shared runtime and `decision_proof.cli validate`.
 
 ## Design Boundary
 

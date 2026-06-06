@@ -13,7 +13,7 @@ This reference captures the productization direction for Decision Proof. The cur
    - Stores the user's decision model: question, options, variables, evidence, constraints, proof goals, and recommendation.
 
 3. **Evaluation layer**
-   - Python calculators in `scripts/`
+  - Python implementation in `decision_proof/`, with `decision_proof.runtime` and `decision_proof.cli` as the public entrypoints
    - Computes derived values, constraints, sensitivity, reports, diffs, and option rankings.
 
 4. **Verification layer**
@@ -25,27 +25,22 @@ This reference captures the productization direction for Decision Proof. The cur
 Future domains should live under a structure like:
 
 ```text
-domains/
+decision_proof/domains/
   car/
-    model.yaml
+    manifest.json
     questions.md
-    rules.py
+    domain.py
+    evaluator.py
     sensitivity.py
-    verifier.lean
-    examples/
-    tests/
+    verifier.py
   graduate_school/
-    model.yaml
+    manifest.json
     questions.md
-    rules.py
-    examples/
-    tests/
+    domain.py
   job_change/
-    model.yaml
+    manifest.json
     questions.md
-    rules.py
-    examples/
-    tests/
+    domain.py
 ```
 
 Each domain pack should define:

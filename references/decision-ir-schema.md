@@ -1,6 +1,6 @@
 # Decision IR Schema
 
-Use Decision IR to persist the user's decision model outside the chat transcript. Prefer JSON when running scripts. YAML is acceptable for discussion, but convert to JSON before script execution unless a local parser is available.
+Use Decision IR to persist the user's decision model outside the chat transcript. Prefer JSON when running the CLI or package runtime. YAML is acceptable for discussion, but convert to JSON before execution unless a local parser is available.
 
 ## Minimal Shape
 

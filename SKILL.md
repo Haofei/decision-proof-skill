@@ -9,10 +9,10 @@ description: Build conditional, auditable decision models from real-world choice
 
 Use this skill to turn an ambiguous real-world decision into a conditional proof model. Do not directly decide for the user. Show what follows from the stated premises, what remains unproven, and what variable changes would flip the conclusion.
 
-Supported domains now route through `core/domain_runtime.py`, which resolves `decision.type` using `domains/*/model.yaml`.
+Supported domains now route through `decision_proof/core/domain_runtime.py`, which resolves `decision.type` using `decision_proof/domains/*/manifest.json`.
 
-- `personal_finance_mobility` -> `domains/car/`
-- `graduate_school` / `education_career` -> `domains/graduate_school/`
+- `personal_finance_mobility` -> `decision_proof/domains/car/`
+- `graduate_school` / `education_career` -> `decision_proof/domains/graduate_school/`
 
 For car questions, read `references/car-decision-model.md`. For graduate-school questions, use the break-even framing from `examples/graduate-school-notes.md` and `examples/graduate-school-decision.json`.
 
@@ -65,11 +65,10 @@ Use only these states:
 - `references/lean-backend.md`: Boundary and pipeline for generated Lean proof certificates.
 - `references/decision-workspace.md`: Productized workspace/report/diff model for Decision Proof.
 - `references/product-architecture.md`: Domain pack, run artifact, API, and data-model direction for productization.
-- `scripts/validate_ir.py`: Validate a Decision IR JSON file. Run as `python3 scripts/validate_ir.py <ir.json>`.
-- `scripts/evaluate_decision.py`: Evaluate any supported Decision IR JSON file through the domain runtime. Run as `python3 scripts/evaluate_decision.py <ir.json>`.
-- `scripts/evaluate_car_decision.py`: Evaluate a car-decision IR and emit proof state. Run as `python3 scripts/evaluate_car_decision.py <ir.json>`.
-- `scripts/evaluate_car_options.py`: Evaluate and rank multiple car options. Run as `python3 scripts/evaluate_car_options.py <ir.json>`.
-- `scripts/sensitivity.py`: Estimate conclusion-flipping thresholds for car decisions. Run as `python3 scripts/sensitivity.py <ir.json>`.
-- `scripts/generate_lean_car_proof.py`: Generate a concrete Lean proof certificate for a car-decision IR and call `lean` to check it. Run as `python3 scripts/generate_lean_car_proof.py <ir.json>`.
-- `scripts/generate_report.py`: Generate a Markdown report and run artifact from a Decision IR. Run as `python3 scripts/generate_report.py <ir.json> --json-out <run.json> --md-out <report.md>`.
-- `scripts/diff_runs.py`: Compare two run artifacts and show decision diffs. Run as `python3 scripts/diff_runs.py <from-run.json> <to-run.json> --md`.
+- `python3 -m decision_proof.cli validate <ir.json>`: Validate a Decision IR JSON file.
+- `python3 -m decision_proof.cli evaluate <ir.json>`: Evaluate any supported Decision IR JSON file through the runtime.
+- `python3 -m decision_proof.cli report <ir.json> --json-out <run.json> --md-out <report.md>`: Generate a Markdown report and run artifact from a Decision IR.
+- `python3 -m decision_proof.cli diff <from-run.json> <to-run.json> --md`: Compare two run artifacts and show decision diffs.
+- `python3 -m decision_proof.cli next-questions <ir.json>`: Generate deterministic next questions.
+- `python3 -m decision_proof.cli verify <ir.json>`: Run domain and global verifiers for a Decision IR.
+- `python3 -m decision_proof.domains.car.verifier <ir.json> --out <proof.lean>`: Generate a concrete Lean proof certificate for a car-decision IR and call `lean` to check it.

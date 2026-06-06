@@ -1,22 +1,11 @@
 from __future__ import annotations
 
-import importlib.util
 import unittest
 from pathlib import Path
 
+from decision_proof.domains.car import options as options_mod
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    spec.loader.exec_module(module)
-    return module
-
-
-options_mod = load_module("evaluate_car_options", ROOT / "scripts" / "evaluate_car_options.py")
 
 
 class CarOptionsTests(unittest.TestCase):
@@ -33,8 +22,14 @@ class CarOptionsTests(unittest.TestCase):
         ir = options_mod.load_json(ROOT / "examples" / "car-options-comparison.json")
 
         result = options_mod.evaluate_options(ir)
-        new_car = next(option for option in result["options"] if option["id"] == "new_car")
-        affordability = next(goal for goal in new_car["proof_state"]["goals"] if goal["claim"] == "income_affordability")
+        new_car = next(
+            option for option in result["options"] if option["id"] == "new_car"
+        )
+        affordability = next(
+            goal
+            for goal in new_car["proof_state"]["goals"]
+            if goal["claim"] == "income_affordability"
+        )
 
         self.assertEqual(new_car["status"], "do_not_recommend")
         self.assertEqual(affordability["severity"], "hard")
@@ -44,7 +39,9 @@ class CarOptionsTests(unittest.TestCase):
         ir = options_mod.load_json(ROOT / "examples" / "car-options-comparison.json")
 
         result = options_mod.evaluate_options(ir)
-        wait = next(option for option in result["options"] if option["id"] == "wait_6_months")
+        wait = next(
+            option for option in result["options"] if option["id"] == "wait_6_months"
+        )
         open_claims = {
             goal["claim"]
             for goal in wait["proof_state"]["goals"]

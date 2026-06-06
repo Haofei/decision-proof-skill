@@ -63,6 +63,16 @@
     },
     "verifier_module": {
       "type": "string"
+    },
+    "derived_value_dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   },
   "additionalProperties": true

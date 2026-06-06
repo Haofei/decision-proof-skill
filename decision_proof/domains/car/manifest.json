@@ -1,0 +1,318 @@
+{
+  "key": "car",
+  "decision_types": [
+    "personal_finance_mobility"
+  ],
+  "summary": "Personal car purchase and mobility tradeoff model.",
+  "required_variables": [
+    "monthly_after_tax_income",
+    "value_of_time"
+  ],
+  "outputs": [
+    "derived_values",
+    "proof_state",
+    "recommendation",
+    "sensitivity",
+    "comparison",
+    "guidance"
+  ],
+  "verifier": "lean",
+  "entry_point": "domain.py",
+  "questions_path": "questions.md",
+  "options_module": "options.py",
+  "sensitivity_module": "sensitivity.py",
+  "verifier_module": "verifier.py",
+  "guidance_config": {
+    "mode": "flip_lever",
+    "passed_constraint_labels": {
+      "cash_safety": "emergency-fund safety",
+      "income_affordability": "income affordability"
+    },
+    "hard_fail": {
+      "claims": [
+        "cash_safety",
+        "income_affordability"
+      ],
+      "severity": "hard",
+      "summary": "Do not treat this as a soft-preference choice yet; a hard constraint is failing.",
+      "deprioritize_fallback": "Do not spend more time on softer upside until the hard constraint is resolved.",
+      "next_step_fallback": "Revisit the decision only after the hard constraint is back inside the safe range.",
+      "claim_overrides": {
+        "income_affordability": {
+          "threshold_key": "break_even_monthly_car_cost",
+          "format": "currency",
+          "suffix": "/month",
+          "template": "Get the all-in monthly cost below about {threshold} or change the income assumptions."
+        }
+      }
+    },
+    "unknown_focus": {
+      "current_key": "value_of_time",
+      "threshold_key": "break_even_value_of_time",
+      "format": "currency",
+      "suffix": "/hour",
+      "focus_template": "The decision currently turns on one unknown: whether your time is worth at least {threshold}.",
+      "next_step": "Decide what one regained hour is actually worth to you before tuning anything else."
+    },
+    "levers": [
+      {
+        "label": "your time value",
+        "current_key": "value_of_time",
+        "threshold_key": "break_even_value_of_time",
+        "higher_is_better": true,
+        "format": "currency",
+        "suffix": "/hour",
+        "next_step": "Decide what one regained hour is actually worth to you."
+      },
+      {
+        "label": "all-in monthly car cost",
+        "current_key": "monthly_car_cost",
+        "threshold_key": "break_even_monthly_car_cost",
+        "higher_is_better": false,
+        "format": "currency",
+        "suffix": "/month",
+        "next_step": "Get a real all-in monthly car quote before changing anything else."
+      },
+      {
+        "label": "monthly time saved",
+        "current_key": "known_monthly_time_saved_hours",
+        "threshold_key": "break_even_time_saved_hours",
+        "higher_is_better": true,
+        "format": "raw",
+        "suffix": " hours/month",
+        "next_step": "Measure actual commute and errand time savings before changing anything else."
+      }
+    ],
+    "positive_statuses": [
+      "lean_yes",
+      "recommend"
+    ],
+    "negative_statuses": [
+      "lean_no",
+      "do_not_recommend"
+    ],
+    "premium": {
+      "source": "flip",
+      "key": "required_lifestyle_premium",
+      "format": "currency",
+      "suffix": "/month"
+    },
+    "summary_templates": {
+      "insufficient_evidence_with_focus": "Do not force a conclusion yet. The model is mostly waiting on one decision-defining number, not on every unknown.",
+      "negative_with_premium": "Tilt against buying on the current numbers. If nothing else changes, this is effectively a {premium} comfort and flexibility purchase.",
+      "positive": "Tilt toward buying, but the case is not evenly sensitive across all inputs.",
+      "default": "The current conclusion is conditional; the next step is to resolve the closest flip line, not to argue every variable at once."
+    },
+    "fallback_focus": "The model has enough math, but it still needs one concrete lever clarified before the conclusion is trustworthy.",
+    "fallback_deprioritize": "Do not spread effort evenly across every estimate; follow the closest flip line first.",
+    "fallback_next_step": "Clarify the single variable that sits closest to the flip line.",
+    "tradeoff_template": "If the factual inputs stay where they are, ask explicitly whether you would knowingly pay {premium} for comfort and optionality."
+  },
+  "next_questions_config": {
+    "mode": "rules",
+    "rules": [
+      {
+        "question_id": "car.value_of_time",
+        "when": {
+          "variable_unknown": "value_of_time"
+        },
+        "question": "What is one regained hour actually worth to you for this decision? A range is enough.",
+        "why_template": "`benefit_exceeds_incremental_cost` is still open, and the closest flip line currently sits around {threshold}.",
+        "why_placeholders": {
+          "threshold": {
+            "source": "flip",
+            "key": "break_even_value_of_time",
+            "format": "currency",
+            "suffix": "/hour"
+          }
+        },
+        "expected_variable_updates": [
+          "value_of_time"
+        ],
+        "possible_conclusion_impact": "Could move the conclusion from insufficient_evidence to lean_yes or lean_no.",
+        "priority": 100
+      },
+      {
+        "question_id": "car.value_of_time.evidence",
+        "when": {
+          "all": [
+            {
+              "any": [
+                {
+                  "top_lever": "your time value"
+                },
+                {
+                  "low_evidence_any": [
+                    "value_of_time"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "question": "How would you justify your current value_of_time number with one concrete benchmark?",
+        "why_template": "The nearest flip condition still runs through `value_of_time`, with a break-even point near {threshold}.",
+        "why_placeholders": {
+          "threshold": {
+            "source": "flip",
+            "key": "break_even_value_of_time",
+            "format": "currency",
+            "suffix": "/hour"
+          }
+        },
+        "expected_variable_updates": [
+          "value_of_time"
+        ],
+        "possible_conclusion_impact": "Could stabilize the current conclusion or flip it if your true time value is on the other side of the threshold.",
+        "priority": 85
+      },
+      {
+        "question_id": "car.monthly_car_cost",
+        "top_lever": "all-in monthly car cost",
+        "when": {
+          "any": [
+            {
+              "top_lever": "all-in monthly car cost"
+            },
+            {
+              "low_evidence_any": [
+                "monthly_car_cost"
+              ]
+            }
+          ]
+        },
+        "question": "What is the real all-in monthly car cost once insurance, parking, maintenance, and financing are included?",
+        "why_template": "Affordability and net value both move with this input, and the current break-even line is about {threshold}.",
+        "why_placeholders": {
+          "threshold": {
+            "source": "flip",
+            "key": "break_even_monthly_car_cost",
+            "format": "currency",
+            "suffix": "/month"
+          }
+        },
+        "expected_variable_updates": [
+          "monthly_car_cost"
+        ],
+        "possible_conclusion_impact": "Could flip the recommendation or turn a warning-level affordability issue into a hard fail.",
+        "priority": 70,
+        "priority_if_top_lever": 90
+      },
+      {
+        "question_id": "car.time_saved",
+        "when": {
+          "any": [
+            {
+              "top_lever": "monthly time saved"
+            },
+            {
+              "low_evidence_any": [
+                "commute_days_per_month",
+                "current_minutes_each_way",
+                "car_minutes_each_way"
+              ]
+            }
+          ]
+        },
+        "question": "What does one representative week of actual commute and errand time savings look like?",
+        "why_template": "The conclusion is close to {threshold}, so small timing errors can dominate the result.",
+        "why_placeholders": {
+          "threshold": {
+            "source": "flip",
+            "key": "break_even_time_saved_hours",
+            "format": "raw",
+            "suffix": " hours/month",
+            "fallback": "the break-even time-saved threshold"
+          }
+        },
+        "expected_variable_updates": [
+          "commute_days_per_month",
+          "current_minutes_each_way",
+          "car_minutes_each_way",
+          "non_commute_trips_per_month",
+          "average_non_commute_minutes_saved"
+        ],
+        "possible_conclusion_impact": "Could materially change monthly_time_saved_hours and move the case across its flip line.",
+        "priority": 80
+      },
+      {
+        "question_id": "car.need_stability",
+        "when": {
+          "goal_status": {
+            "claim": "future_need_stability",
+            "statuses": [
+              "open",
+              "assumption"
+            ]
+          }
+        },
+        "question": "How likely is this transport need to stay in place for at least the next 12 months?",
+        "why_this_question": "The model still treats future need stability as unresolved or assumed, which affects how much to trust the upside.",
+        "expected_variable_updates": [
+          "expected_need_stability_months"
+        ],
+        "possible_conclusion_impact": "Could increase or decrease confidence in a borderline recommendation.",
+        "priority": 60
+      },
+      {
+        "question_id": "car.monthly_income",
+        "when": {
+          "variable_unknown": "monthly_after_tax_income"
+        },
+        "question": "What after-tax monthly income should this decision use right now?",
+        "why_this_question": "Income affordability is still open without a current after-tax income number.",
+        "expected_variable_updates": [
+          "monthly_after_tax_income"
+        ],
+        "possible_conclusion_impact": "Could move affordability from open to pass, warning, or hard fail.",
+        "priority": 95
+      }
+    ]
+  },
+  "derived_value_dependencies": {
+    "monthly_commute_time_saved_hours": [
+      "commute_days_per_month",
+      "current_minutes_each_way",
+      "car_minutes_each_way"
+    ],
+    "monthly_non_commute_time_saved_hours": [
+      "non_commute_trips_per_month",
+      "average_non_commute_minutes_saved"
+    ],
+    "monthly_time_saved_hours": [
+      "commute_days_per_month",
+      "current_minutes_each_way",
+      "car_minutes_each_way",
+      "non_commute_trips_per_month",
+      "average_non_commute_minutes_saved"
+    ],
+    "monthly_time_value": [
+      "commute_days_per_month",
+      "current_minutes_each_way",
+      "car_minutes_each_way",
+      "non_commute_trips_per_month",
+      "average_non_commute_minutes_saved",
+      "value_of_time"
+    ],
+    "incremental_car_cost": [
+      "monthly_car_cost",
+      "current_transport_monthly_cost"
+    ],
+    "net_monthly_value": [
+      "commute_days_per_month",
+      "current_minutes_each_way",
+      "car_minutes_each_way",
+      "non_commute_trips_per_month",
+      "average_non_commute_minutes_saved",
+      "value_of_time",
+      "comfort_value_monthly",
+      "optionality_value_monthly",
+      "monthly_car_cost",
+      "current_transport_monthly_cost"
+    ],
+    "car_cost_income_ratio": [
+      "monthly_car_cost",
+      "monthly_after_tax_income"
+    ]
+  }
+}

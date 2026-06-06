@@ -2,7 +2,7 @@
 
 Use this structure for every substantive decision answer.
 
-The same structure is used by `scripts/generate_report.py`, which emits a Markdown report and a JSON run artifact. Use `scripts/diff_runs.py` to compare two run artifacts after a variable change.
+The same structure is used by `python3 -m decision_proof.cli report`, which emits a Markdown report and a JSON run artifact. Use `python3 -m decision_proof.cli diff` to compare two run artifacts after a variable change.
 
 ## 1. Current Conclusion
 
