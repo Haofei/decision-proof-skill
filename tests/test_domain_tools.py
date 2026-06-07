@@ -45,6 +45,17 @@ class DomainToolsTests(unittest.TestCase):
 
         self.assertTrue(result["ok"], result.get("errors"))
 
+    def test_strict_gate_requires_contract_fields(self):
+        # car lacks evidence_policy / escalation_boundary / variable_constraints.
+        result = validate_domain(
+            ROOT / "decision_proof" / "domains" / "car", strict=True
+        )
+
+        self.assertFalse(result["ok"])
+        joined = " | ".join(result["errors"])
+        self.assertIn("evidence_policy", joined)
+        self.assertIn("escalation_boundary", joined)
+
 
 if __name__ == "__main__":
     unittest.main()

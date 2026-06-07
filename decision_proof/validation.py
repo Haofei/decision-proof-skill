@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from decision_proof.core.domain_runtime import validation_errors
+from decision_proof.core.domain_runtime import (
+    validation_errors,
+    variable_constraint_errors,
+)
 from decision_proof.core.io import load_json
 from decision_proof.core.schema_validation import validate_instance
 
@@ -36,6 +39,7 @@ def validate(ir: dict) -> list[str]:
                     )
 
     errors.extend(validation_errors(ir))
+    errors.extend(variable_constraint_errors(ir))
     return sorted(set(errors))
 
 

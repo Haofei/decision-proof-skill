@@ -71,6 +71,76 @@ def validation_errors(ir: dict[str, Any]) -> list[str]:
     return [f"missing required variables for domain '{spec.key}': {', '.join(missing)}"]
 
 
+_NUMERIC_CONSTRAINT_TYPES = {
+    "rate_decimal",
+    "currency",
+    "fraction",
+    "years",
+    "months",
+    "count",
+    "number",
+}
+_CONSTRAINT_HINTS = {
+    "rate_decimal": " (rates are decimals, e.g. 0.065 not 6.5)",
+    "fraction": " (fractions are 0-1, e.g. 0.20 not 20)",
+}
+
+
+def variable_constraint_errors(ir: dict[str, Any]) -> list[str]:
+    """Model-level validation: check provided values against the domain's
+    declared ranges/units. Catches errors a schema cannot (a 6.5 rate, a $0
+    income, a percentage entered as 20 instead of 0.20)."""
+    if not decision_markers(ir):
+        return []
+    try:
+        spec = resolve_domain_spec(ir)
+    except DomainRuntimeError:
+        return []
+
+    constraints = domain_manifest(spec.model_path).get("variable_constraints", {})
+    if not isinstance(constraints, dict):
+        return []
+    variables = ir.get("variables", {})
+    errors: list[str] = []
+
+    for name, rule in constraints.items():
+        if not isinstance(rule, dict):
+            continue
+        variable = variables.get(name)
+        if not isinstance(variable, dict):
+            continue  # absent is the required-variable check's job
+        value = variable.get("value")
+        if value is None:  # explicit unknown opens a goal, not a constraint error
+            continue
+
+        kind = rule.get("type")
+        if kind in _NUMERIC_CONSTRAINT_TYPES:
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                errors.append(
+                    f"variables.{name} must be a number ({kind}); got {value!r}"
+                )
+                continue
+            number = float(value)
+            hint = _CONSTRAINT_HINTS.get(kind, "")
+            if "min" in rule and number < rule["min"]:
+                errors.append(
+                    f"variables.{name} = {number:g} is below min {rule['min']:g}{hint}"
+                )
+            if "max" in rule and number > rule["max"]:
+                errors.append(
+                    f"variables.{name} = {number:g} is above max {rule['max']:g}{hint}"
+                )
+            if "exclusive_min" in rule and number <= rule["exclusive_min"]:
+                errors.append(
+                    f"variables.{name} = {number:g} must be greater than {rule['exclusive_min']:g}"
+                )
+            if "exclusive_max" in rule and number >= rule["exclusive_max"]:
+                errors.append(
+                    f"variables.{name} = {number:g} must be less than {rule['exclusive_max']:g}"
+                )
+    return errors
+
+
 def evaluate(ir: dict[str, Any]) -> dict[str, Any]:
     _, module = load_domain(ir)
     return module.evaluate(ir)

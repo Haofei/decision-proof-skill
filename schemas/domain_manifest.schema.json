@@ -83,6 +83,26 @@
           "minLength": 1
         }
       }
+    },
+    "variable_constraints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string"},
+          "min": {"type": "number"},
+          "max": {"type": "number"},
+          "exclusive_min": {"type": "number"},
+          "exclusive_max": {"type": "number"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence_policy": {
+      "type": "object"
+    },
+    "escalation_boundary": {
+      "type": "string"
     }
   },
   "additionalProperties": true

@@ -22,6 +22,37 @@
   "verifier": "python",
   "entry_point": "domain.py",
   "questions_path": "questions.md",
+  "variable_constraints": {
+    "home_price": {"type": "currency", "exclusive_min": 0},
+    "mortgage_rate_annual": {"type": "rate_decimal", "min": 0, "max": 0.25},
+    "monthly_rent": {"type": "currency", "exclusive_min": 0},
+    "monthly_after_tax_income": {"type": "currency", "exclusive_min": 0},
+    "emergency_fund_months_after": {"type": "months", "min": 0, "max": 120},
+    "expected_years_in_home": {"type": "years", "min": 0, "max": 50},
+    "down_payment_pct": {"type": "fraction", "min": 0, "max": 1},
+    "mortgage_term_years": {"type": "years", "min": 1, "max": 50},
+    "home_appreciation_rate_annual": {"type": "rate_decimal", "min": -0.5, "max": 0.5},
+    "rent_growth_rate_annual": {"type": "rate_decimal", "min": -0.5, "max": 0.5},
+    "investment_return_rate_annual": {"type": "rate_decimal", "min": -0.5, "max": 0.5},
+    "property_tax_rate_annual": {"type": "rate_decimal", "min": 0, "max": 0.1},
+    "maintenance_rate_annual": {"type": "rate_decimal", "min": 0, "max": 0.1},
+    "closing_cost_pct": {"type": "fraction", "min": 0, "max": 0.2},
+    "selling_cost_pct": {"type": "fraction", "min": 0, "max": 0.2},
+    "hoa_monthly": {"type": "currency", "min": 0},
+    "min_emergency_fund_months": {"type": "months", "min": 0, "max": 120},
+    "max_housing_cost_income_ratio": {"type": "fraction", "min": 0, "max": 1},
+    "hard_max_housing_cost_income_ratio": {"type": "fraction", "min": 0, "max": 1}
+  },
+  "evidence_policy": {
+    "must_be_measured_or_quoted": [
+      "home_price",
+      "mortgage_rate_annual",
+      "monthly_rent",
+      "monthly_after_tax_income"
+    ],
+    "note": "These drive the conclusion. A `recommend` requires them quoted/measured, not guessed; weak evidence caps at `lean_yes`."
+  },
+  "escalation_boundary": "Refuse to conclude (insufficient_evidence) when expected_years_in_home, home_price, mortgage_rate_annual, or monthly_rent is unknown. Warn off (do_not_recommend) when post-purchase cash safety or the hard affordability ceiling fails.",
   "priors": {
     "down_payment_pct": 0.20,
     "mortgage_term_years": 30.0,

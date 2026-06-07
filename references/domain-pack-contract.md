@@ -286,6 +286,22 @@ A pack is **accepted** iff: schema-valid; all golden cases reproduce; all global
 invariants pass; the §9 quality fields are present; ≥ 2 examples and ≥ 3 golden
 cases exist.
 
+The machine-checkable parts of this gate are enforced by the release-mode
+validator:
+
+```
+python -m decision_proof.cli domain-validate <domain_dir> --strict
+python -m decision_proof.cli domain-test <domain_dir>
+```
+
+`--strict` hard-fails unless the manifest declares `variable_constraints`,
+`derived_value_dependencies`, `evidence_policy`, and `escalation_boundary`, and
+has ≥ 3 golden cases. `variable_constraints` also powers model-level input
+validation (`decision-proof validate`): a value out of its declared range or of
+the wrong type (e.g. a 6.5 mortgage rate, a percentage entered as 20, a `$`
+string, a zero income) is rejected before it can produce a precise-looking but
+wrong result.
+
 ---
 
 ## 12. The expert interview (meta-interview bank)

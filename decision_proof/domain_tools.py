@@ -56,6 +56,15 @@ def validate_domain(domain_dir: Path, *, strict: bool = False) -> dict[str, Any]
         )
 
     if strict:
+        # Release gate: the contract's machine-checkable fields must be present.
+        for field in (
+            "variable_constraints",
+            "derived_value_dependencies",
+            "evidence_policy",
+            "escalation_boundary",
+        ):
+            if not manifest.get(field):
+                warnings.append(f"strict: manifest is missing required field '{field}'")
         errors.extend(warnings)
         warnings = []
 

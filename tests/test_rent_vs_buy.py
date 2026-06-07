@@ -224,6 +224,74 @@ class RentVsBuyTests(unittest.TestCase):
 
         self.assertEqual(questions[0]["id"], "rent_vs_buy.length_of_stay")
 
+    # --- semantic (model-level) validation -------------------------------
+
+    def test_valid_example_passes_semantic_validation(self):
+        from decision_proof.validation import validate
+
+        self.assertEqual(validate(base_ir()), [])
+
+    def test_semantic_validation_catches_out_of_range_inputs(self):
+        from decision_proof.validation import validate
+
+        ir = base_ir()
+        set_value(ir, "mortgage_rate_annual", 6.5)  # percent entered as a rate
+        set_value(ir, "down_payment_pct", 20)  # percent entered as a fraction
+        set_value(ir, "monthly_after_tax_income", 0)
+        set_value(ir, "home_price", "$600000")  # string, not a number
+
+        errors = validate(ir)
+        joined = " | ".join(errors)
+        self.assertIn("mortgage_rate_annual", joined)
+        self.assertIn("down_payment_pct", joined)
+        self.assertIn("monthly_after_tax_income", joined)
+        self.assertIn("home_price", joined)
+
+    # --- property-based monotonicity -------------------------------------
+
+    def _derived(self, ir, key):
+        return runtime_mod.evaluate(ir)["derived_values"][key]
+
+    def test_higher_rate_raises_monthly_payment(self):
+        low, high = base_ir(), base_ir()
+        set_value(high, "mortgage_rate_annual", 0.085)
+        self.assertGreater(
+            self._derived(high, "monthly_mortgage_payment"),
+            self._derived(low, "monthly_mortgage_payment"),
+        )
+
+    def test_higher_price_worsens_affordability(self):
+        base, pricier = base_ir(), base_ir()
+        set_value(pricier, "home_price", 750000)
+        self.assertGreater(
+            self._derived(pricier, "housing_cost_income_ratio"),
+            self._derived(base, "housing_cost_income_ratio"),
+        )
+
+    def test_higher_rent_lowers_break_even(self):
+        base, pricier_rent = base_ir(), base_ir()
+        set_value(pricier_rent, "monthly_rent", 3600)
+        self.assertLess(
+            self._derived(pricier_rent, "break_even_years"),
+            self._derived(base, "break_even_years"),
+        )
+
+    def test_longer_stay_never_weakens_the_buy_case(self):
+        # positive_case is (horizon >= break_even); once true for some horizon
+        # it must stay true for every longer horizon.
+        positive = {"recommend", "lean_yes"}
+        seen_positive = False
+        for years in range(1, 21):
+            ir = base_ir()
+            set_value(ir, "expected_years_in_home", years)
+            status = runtime_mod.evaluate(ir)["recommendation"]["status"]
+            if status in positive:
+                seen_positive = True
+            elif seen_positive:
+                self.fail(
+                    f"buy case weakened at {years} years (status={status}) after being positive"
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
